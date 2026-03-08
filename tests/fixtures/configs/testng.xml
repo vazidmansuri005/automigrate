@@ -1,0 +1,15 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="Regression Suite" parallel="methods" thread-count="4">
+    <parameter name="baseUrl" value="https://prod.example.com"/>
+    <parameter name="browser" value="chrome"/>
+    <test name="Login Tests">
+        <classes>
+            <class name="com.example.tests.LoginTest"/>
+        </classes>
+    </test>
+    <test name="Dashboard Tests">
+        <classes>
+            <class name="com.example.tests.DashboardTest"/>
+        </classes>
+    </test>
+</suite>
