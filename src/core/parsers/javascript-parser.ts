@@ -4,7 +4,6 @@
  */
 
 import * as babelParser from '@babel/parser';
-// @ts-expect-error — babel traverse has ESM/CJS interop issues with @types
 import _traverse from '@babel/traverse';
 // Handle ESM/CJS interop — @babel/traverse default export may be nested
 const traverse: any = typeof _traverse === 'function' ? _traverse : (_traverse as any).default;
