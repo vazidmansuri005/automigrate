@@ -98,7 +98,7 @@
     "inquirer": "^9.2.0",
     "listr2": "^8.0.0",
     "ora": "^8.0.0",
-    "p-limit": "^5.0.0",
+    "p-limit": "^7.3.0",
     "tree-sitter": "^0.21.0",
     "tree-sitter-c-sharp": "^0.21.0",
     "tree-sitter-java": "^0.21.0",
