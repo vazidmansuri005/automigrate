@@ -38,14 +38,12 @@ program
   )
   .version('0.1.0')
   .option('--plan <path>', 'Resume migration from a saved plan file')
-  .option('--output <dir>', 'Output directory for Playwright tests')
-  .option('-y, --yes', 'Skip confirmation prompts')
-  .option('-v, --verbose', 'Verbose output')
+  .passThroughOptions()
   .action(async (opts) => {
     // Default action: run guided migration
     await runGuidedMigration({
       sourceDir: opts.args?.[0],
-      outputDir: opts.output,
+      outputDir: undefined,
       planFile: opts.plan,
       yes: opts.yes,
       verbose: opts.verbose,
