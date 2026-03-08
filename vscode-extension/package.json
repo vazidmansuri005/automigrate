@@ -1,0 +1,186 @@
+{
+  "name": "automigrate-vscode",
+  "displayName": "Automigrate - Playwright Migration Tool",
+  "description": "Migrate Selenium, Cypress, Puppeteer, and Appium tests to Playwright",
+  "version": "0.1.0",
+  "publisher": "automigrate",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Testing",
+    "Other"
+  ],
+  "keywords": [
+    "playwright",
+    "selenium",
+    "cypress",
+    "puppeteer",
+    "appium",
+    "migration",
+    "testing",
+    "test automation"
+  ],
+  "icon": "images/icon.png",
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/pom.xml",
+    "workspaceContains:**/package.json",
+    "workspaceContains:**/requirements.txt",
+    "workspaceContains:**/wdio.conf.{js,ts}",
+    "workspaceContains:**/cypress.config.{js,ts}",
+    "workspaceContains:**/.automigrate.config.{ts,js,json}",
+    "onLanguage:java",
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onLanguage:python",
+    "onLanguage:csharp"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "automigrate.analyzeFile",
+        "title": "Automigrate: Analyze Current File"
+      },
+      {
+        "command": "automigrate.migrateFile",
+        "title": "Automigrate: Migrate Current File"
+      },
+      {
+        "command": "automigrate.migrateFolder",
+        "title": "Automigrate: Migrate Folder"
+      },
+      {
+        "command": "automigrate.previewDiff",
+        "title": "Automigrate: Preview Migration Diff"
+      },
+      {
+        "command": "automigrate.interactive",
+        "title": "Automigrate: Interactive Migration Wizard"
+      },
+      {
+        "command": "automigrate.migrateProject",
+        "title": "Automigrate: Migrate Project to Playwright"
+      }
+    ],
+    "configuration": {
+      "title": "Automigrate",
+      "properties": {
+        "automigrate.targetLanguage": {
+          "type": "string",
+          "default": "typescript",
+          "enum": [
+            "typescript",
+            "javascript",
+            "python",
+            "csharp",
+            "java"
+          ],
+          "description": "Target language for migrated Playwright tests."
+        },
+        "automigrate.selectorStrategy": {
+          "type": "string",
+          "default": "preserve",
+          "enum": [
+            "preserve",
+            "data-testid",
+            "role",
+            "text",
+            "css"
+          ],
+          "description": "Strategy for converting selectors during migration."
+        },
+        "automigrate.waitStrategy": {
+          "type": "string",
+          "default": "auto-wait",
+          "enum": [
+            "auto-wait",
+            "explicit",
+            "preserve"
+          ],
+          "description": "Strategy for handling waits in migrated tests."
+        },
+        "automigrate.outputDir": {
+          "type": "string",
+          "default": "./playwright-tests",
+          "description": "Output directory for migrated test files."
+        },
+        "automigrate.dryRun": {
+          "type": "boolean",
+          "default": true,
+          "description": "When enabled, shows migration preview without writing files."
+        }
+      }
+    },
+    "languages": [
+      {
+        "id": "selenium-test",
+        "extensions": [],
+        "filenames": [],
+        "filenamePatterns": [
+          "**/selenium/**/*.{js,ts,java,py,cs}",
+          "**/*selenium*test*.{js,ts,java,py,cs}"
+        ]
+      },
+      {
+        "id": "cypress-test",
+        "extensions": [],
+        "filenames": [],
+        "filenamePatterns": [
+          "**/cypress/**/*.{js,ts}",
+          "**/*.cy.{js,ts}"
+        ]
+      },
+      {
+        "id": "puppeteer-test",
+        "extensions": [],
+        "filenames": [],
+        "filenamePatterns": [
+          "**/puppeteer/**/*.{js,ts}",
+          "**/*puppeteer*test*.{js,ts}"
+        ]
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "automigrate.migrateFile",
+          "when": "resourceExtname =~ /\\.(js|ts|java|py|cs)$/",
+          "group": "automigrate@1"
+        },
+        {
+          "command": "automigrate.migrateFolder",
+          "when": "explorerResourceIsFolder",
+          "group": "automigrate@2"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "automigrate.analyzeFile",
+          "when": "editorLangId =~ /javascript|typescript|java|python|csharp/",
+          "group": "automigrate@1"
+        },
+        {
+          "command": "automigrate.previewDiff",
+          "when": "editorLangId =~ /javascript|typescript|java|python|csharp/",
+          "group": "automigrate@2"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "pretest": "npm run compile",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.22.0",
+    "typescript": "^5.3.0"
+  }
+}
