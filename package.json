@@ -1,6 +1,6 @@
 {
   "name": "automigrate",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Universal test migration tool — converts Selenium, Cypress, Puppeteer, Appium, WebdriverIO, and Robot Framework test suites to Playwright",
   "type": "module",
   "main": "dist/index.cjs",
@@ -63,13 +63,13 @@
   ],
   "author": "automigrate contributors",
   "license": "MIT",
-  "homepage": "https://github.com/automigrate-tool/automigrate#readme",
+  "homepage": "https://github.com/vazidmansuri005/automigrate#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/automigrate-tool/automigrate.git"
+    "url": "git+https://github.com/vazidmansuri005/automigrate.git"
   },
   "bugs": {
-    "url": "https://github.com/automigrate-tool/automigrate/issues"
+    "url": "https://github.com/vazidmansuri005/automigrate/issues"
   },
   "publishConfig": {
     "access": "public"
