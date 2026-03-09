@@ -70,11 +70,47 @@ export function buildSmartPattern(sourceDesc: string, targetDesc: string): Smart
           regexStr += '(.+?)\\s*,\\s*';
         }
 
-        // Replace param name in template with capture ref
-        template = template.replace(
-          new RegExp(`\\b${escapeRegex(paramName)}\\b`),
-          `$${captureIndex}`,
-        );
+        // Strip surrounding quotes from param name for template matching
+        const bareParamName = paramName.replace(/^['"]|['"]$/g, '');
+
+        // Replace param name in template with capture ref.
+        // First try the quoted version (e.g. 'value' in template), then bare word.
+        // For selector mappings like By.id('value') → page.locator('#value'),
+        // we need to match patterns like #value, .value, xpath=value, [name="value"]
+        // and replace the whole expression including prefix with proper capture ref.
+        let replaced = false;
+
+        // Try replacing compound patterns: '#value' → '#' + $N (for By.id)
+        const compoundPatterns = [
+          { search: `'#${bareParamName}'`, replace: `'#' + $${captureIndex}` },
+          { search: `'.${bareParamName}'`, replace: `'.' + $${captureIndex}` },
+          {
+            search: `'xpath=${bareParamName}'`,
+            replace: `'xpath=' + $${captureIndex}`,
+          },
+          {
+            search: `'[name="${bareParamName}"]'`,
+            replace: `'[name="' + $${captureIndex} + '"]'`,
+          },
+          { search: `'${bareParamName}'`, replace: `$${captureIndex}` },
+          { search: `/${bareParamName}/`, replace: `/$${captureIndex}/` },
+        ];
+
+        for (const cp of compoundPatterns) {
+          if (template.includes(cp.search)) {
+            template = template.replace(cp.search, cp.replace);
+            replaced = true;
+            break;
+          }
+        }
+
+        if (!replaced) {
+          // Fallback: try word-boundary match on bare param name
+          template = template.replace(
+            new RegExp(`\\b${escapeRegex(bareParamName)}\\b`),
+            `$${captureIndex}`,
+          );
+        }
       }
 
       regexStr += '\\s*\\)';
@@ -201,6 +237,74 @@ function getDirectRulesForFramework(
 function getSeleniumDirectRules(): DirectRule[] {
   return [
     // ── Assertions (MUST come first — they wrap other patterns like driver.getTitle) ──
+    // Compound assertions: assertTrue(driver.findElement(By.xxx("...")).isDisplayed())
+    // These MUST come before the generic assertion rules to resolve nested findElement calls
+    {
+      regex:
+        /assertTrue\s*\(\s*driver\.findElement\s*\(\s*By\.id\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.isDisplayed\s*\(\)\s*\)/,
+      replacement: "await expect(page.locator('#$1')).toBeVisible()",
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assertTrue(findElement(By.id).isDisplayed) → expect.toBeVisible',
+    },
+    {
+      regex:
+        /assertTrue\s*\(\s*driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.isDisplayed\s*\(\)\s*\)/,
+      replacement: "await expect(page.locator('$1')).toBeVisible()",
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assertTrue(findElement(By.css).isDisplayed) → expect.toBeVisible',
+    },
+    {
+      regex:
+        /assertTrue\s*\(\s*driver\.findElement\s*\(\s*By\.className\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.isDisplayed\s*\(\)\s*\)/,
+      replacement: "await expect(page.locator('.$1')).toBeVisible()",
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assertTrue(findElement(By.className).isDisplayed) → expect.toBeVisible',
+    },
+    {
+      regex:
+        /assertTrue\s*\(\s*driver\.findElement\s*\(\s*By\.xpath\s*\(\s*"([^"]+)"\s*\)\s*\)\.isDisplayed\s*\(\)\s*\)/,
+      replacement: 'await expect(page.locator(`xpath=$1`)).toBeVisible()',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assertTrue(findElement(By.xpath).isDisplayed) → expect.toBeVisible',
+    },
+    {
+      regex:
+        /assertFalse\s*\(\s*driver\.findElement\s*\(\s*By\.id\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.isDisplayed\s*\(\)\s*\)/,
+      replacement: "await expect(page.locator('#$1')).toBeHidden()",
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assertFalse(findElement(By.id).isDisplayed) → expect.toBeHidden',
+    },
+    {
+      regex:
+        /assertFalse\s*\(\s*driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.isDisplayed\s*\(\)\s*\)/,
+      replacement: "await expect(page.locator('$1')).toBeHidden()",
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assertFalse(findElement(By.css).isDisplayed) → expect.toBeHidden',
+    },
+    // Compound: assertTrue(driver.findElement(...).getText().contains("..."))
+    {
+      regex:
+        /assertTrue\s*\(\s*driver\.findElement\s*\(\s*By\.id\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.getText\s*\(\)\.contains\s*\(\s*"([^"]+)"\s*\)\s*\)/,
+      replacement: 'await expect(page.locator(\'#$1\')).toContainText("$2")',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assertTrue(findElement.getText.contains) → expect.toContainText',
+    },
+    {
+      regex:
+        /assertTrue\s*\(\s*driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.getText\s*\(\)\.contains\s*\(\s*"([^"]+)"\s*\)\s*\)/,
+      replacement: 'await expect(page.locator(\'$1\')).toContainText("$2")',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assertTrue(findElement.getText.contains) → expect.toContainText',
+    },
+    // Generic assertion fallbacks (catch patterns where the element is already a variable)
     {
       regex: /assertTrue\s*\(\s*(.+?)\.isDisplayed\s*\(\)\s*(?:,\s*"([^"]*)"\s*)?\)/,
       replacement: 'await expect($1).toBeVisible()',
@@ -445,8 +549,8 @@ function getSeleniumDirectRules(): DirectRule[] {
     },
     {
       regex:
-        /driver\.findElement\s*\(\s*By\.xpath\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.sendKeys\s*\(\s*(.+?)\s*\)/,
-      replacement: "await page.locator('xpath=$1').fill($2)",
+        /driver\.findElement\s*\(\s*By\.xpath\s*\(\s*"([^"]+)"\s*\)\s*\)\.sendKeys\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.locator(`xpath=$1`).fill($2)',
       confidence: 'high',
       category: 'action',
       description: 'findElement(By.xpath).sendKeys → locator.fill',
@@ -490,8 +594,8 @@ function getSeleniumDirectRules(): DirectRule[] {
       description: 'findElement(By.name).click → locator.click',
     },
     {
-      regex: /driver\.findElement\s*\(\s*By\.xpath\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.click\s*\(\)/,
-      replacement: "await page.locator('xpath=$1').click()",
+      regex: /driver\.findElement\s*\(\s*By\.xpath\s*\(\s*"([^"]+)"\s*\)\s*\)\.click\s*\(\)/,
+      replacement: 'await page.locator(`xpath=$1`).click()',
       confidence: 'high',
       category: 'action',
       description: 'findElement(By.xpath).click → locator.click',
@@ -562,9 +666,8 @@ function getSeleniumDirectRules(): DirectRule[] {
       description: 'findElement(By.className).getText → locator.textContent',
     },
     {
-      regex:
-        /driver\.findElement\s*\(\s*By\.xpath\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.isDisplayed\s*\(\)/,
-      replacement: "await page.locator('xpath=$1').isVisible()",
+      regex: /driver\.findElement\s*\(\s*By\.xpath\s*\(\s*"([^"]+)"\s*\)\s*\)\.isDisplayed\s*\(\)/,
+      replacement: 'await page.locator(`xpath=$1`).isVisible()',
       confidence: 'high',
       category: 'action',
       description: 'findElement(By.xpath).isDisplayed → locator.isVisible',
@@ -609,16 +712,15 @@ function getSeleniumDirectRules(): DirectRule[] {
       description: 'findElement(By.name).isDisplayed → locator.isVisible',
     },
     {
-      regex:
-        /driver\.findElement\s*\(\s*By\.xpath\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.getText\s*\(\)/,
-      replacement: "await page.locator('xpath=$1').textContent()",
+      regex: /driver\.findElement\s*\(\s*By\.xpath\s*\(\s*"([^"]+)"\s*\)\s*\)\.getText\s*\(\)/,
+      replacement: 'await page.locator(`xpath=$1`).textContent()',
       confidence: 'high',
       category: 'action',
       description: 'findElement(By.xpath).getText → locator.textContent',
     },
     {
-      regex: /driver\.findElement\s*\(\s*By\.xpath\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.click\s*\(\)/,
-      replacement: "await page.locator('xpath=$1').click()",
+      regex: /driver\.findElement\s*\(\s*By\.xpath\s*\(\s*"([^"]+)"\s*\)\s*\)\.click\s*\(\)/,
+      replacement: 'await page.locator(`xpath=$1`).click()',
       confidence: 'high',
       category: 'action',
       description: 'findElement(By.xpath).click → locator.click',
@@ -795,8 +897,8 @@ function getSeleniumDirectRules(): DirectRule[] {
     },
     {
       regex:
-        /(?:(?:WebElement|const|let|var)\s+)?(\w+)\s*=\s*(?:await\s+)?driver\.findElement\s*\(\s*By\.xpath\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)/,
-      replacement: "const $1 = page.locator('xpath=$2')",
+        /(?:(?:WebElement|const|let|var)\s+)?(\w+)\s*=\s*(?:await\s+)?driver\.findElement\s*\(\s*By\.xpath\s*\(\s*"([^"]+)"\s*\)\s*\)/,
+      replacement: 'const $1 = page.locator(`xpath=$2`)',
       confidence: 'high',
       category: 'selector',
       description: 'var = findElement(By.xpath) → const = locator',
@@ -816,6 +918,123 @@ function getSeleniumDirectRules(): DirectRule[] {
       confidence: 'high',
       category: 'selector',
       description: 'var = findElement(By.name) → const = locator',
+    },
+
+    // ── Standalone By.xxx() expressions (e.g., By locator = By.id("x")) ──
+    {
+      regex: /(?:By\s+)?(\w+)\s*=\s*By\.id\s*\(\s*['"]([^'"]+)['"]\s*\)/,
+      replacement: "const $1 = page.locator('#$2')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'By.id assignment → locator',
+    },
+    {
+      regex: /(?:By\s+)?(\w+)\s*=\s*By\.cssSelector\s*\(\s*['"]([^'"]+)['"]\s*\)/,
+      replacement: "const $1 = page.locator('$2')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'By.cssSelector assignment → locator',
+    },
+    {
+      regex: /(?:By\s+)?(\w+)\s*=\s*By\.css\s*\(\s*['"]([^'"]+)['"]\s*\)/,
+      replacement: "const $1 = page.locator('$2')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'By.css assignment → locator',
+    },
+    {
+      regex: /(?:By\s+)?(\w+)\s*=\s*By\.className\s*\(\s*['"]([^'"]+)['"]\s*\)/,
+      replacement: "const $1 = page.locator('.$2')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'By.className assignment → locator',
+    },
+    {
+      regex: /(?:By\s+)?(\w+)\s*=\s*By\.name\s*\(\s*['"]([^'"]+)['"]\s*\)/,
+      replacement: 'const $1 = page.locator(\'[name="$2"]\')',
+      confidence: 'high',
+      category: 'selector',
+      description: 'By.name assignment → locator',
+    },
+    {
+      regex: /(?:By\s+)?(\w+)\s*=\s*By\.xpath\s*\(\s*"([^"]+)"\s*\)/,
+      replacement: 'const $1 = page.locator(`xpath=$2`)',
+      confidence: 'high',
+      category: 'selector',
+      description: 'By.xpath assignment → locator',
+    },
+    {
+      regex: /(?:By\s+)?(\w+)\s*=\s*By\.tagName\s*\(\s*['"]([^'"]+)['"]\s*\)/,
+      replacement: "const $1 = page.locator('$2')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'By.tagName assignment → locator',
+    },
+    {
+      regex: /(?:By\s+)?(\w+)\s*=\s*By\.linkText\s*\(\s*['"]([^'"]+)['"]\s*\)/,
+      replacement: "const $1 = page.getByRole('link', { name: '$2' })",
+      confidence: 'high',
+      category: 'selector',
+      description: 'By.linkText assignment → getByRole',
+    },
+
+    // ── Generic driver.findElement catch-all (resolves By.xxx inline) ──
+    // These catch any remaining driver.findElement patterns not matched above
+    {
+      regex: /driver\.findElement\s*\(\s*By\.id\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)/,
+      replacement: "page.locator('#$1')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'findElement(By.id) → locator (generic)',
+    },
+    {
+      regex: /driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)/,
+      replacement: "page.locator('$1')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'findElement(By.cssSelector) → locator (generic)',
+    },
+    {
+      regex: /driver\.findElement\s*\(\s*By\.css\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)/,
+      replacement: "page.locator('$1')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'findElement(By.css) → locator (generic)',
+    },
+    {
+      regex: /driver\.findElement\s*\(\s*By\.className\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)/,
+      replacement: "page.locator('.$1')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'findElement(By.className) → locator (generic)',
+    },
+    {
+      regex: /driver\.findElement\s*\(\s*By\.name\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)/,
+      replacement: 'page.locator(\'[name="$1"]\')',
+      confidence: 'high',
+      category: 'selector',
+      description: 'findElement(By.name) → locator (generic)',
+    },
+    {
+      regex: /driver\.findElement\s*\(\s*By\.xpath\s*\(\s*"([^"]+)"\s*\)\s*\)/,
+      replacement: 'page.locator(`xpath=$1`)',
+      confidence: 'high',
+      category: 'selector',
+      description: 'findElement(By.xpath) → locator (generic)',
+    },
+    {
+      regex: /driver\.findElement\s*\(\s*By\.tagName\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)/,
+      replacement: "page.locator('$1')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'findElement(By.tagName) → locator (generic)',
+    },
+    {
+      regex: /driver\.findElement\s*\(\s*By\.linkText\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)/,
+      replacement: "page.getByRole('link', { name: '$1' })",
+      confidence: 'high',
+      category: 'selector',
+      description: 'findElement(By.linkText) → getByRole (generic)',
     },
 
     // ── Variable-based element actions (after assignment) ──
@@ -1499,7 +1718,7 @@ function getCSharpDirectRules(): DirectRule[] {
     {
       regex:
         /driver\.FindElement\s*\(\s*By\.XPath\s*\(\s*["']([^"']+)["']\s*\)\s*\)\.SendKeys\s*\(\s*(.+?)\s*\)/,
-      replacement: "await page.locator('xpath=$1').fill($2)",
+      replacement: 'await page.locator(`xpath=$1`).fill($2)',
       confidence: 'high',
       category: 'action',
       description: 'FindElement(By.XPath).SendKeys → locator.fill',
@@ -1538,7 +1757,7 @@ function getCSharpDirectRules(): DirectRule[] {
     },
     {
       regex: /driver\.FindElement\s*\(\s*By\.XPath\s*\(\s*["']([^"']+)["']\s*\)\s*\)\.Click\s*\(\)/,
-      replacement: "await page.locator('xpath=$1').click()",
+      replacement: 'await page.locator(`xpath=$1`).click()',
       confidence: 'high',
       category: 'action',
       description: 'FindElement(By.XPath).Click → locator.click',
@@ -1606,7 +1825,7 @@ function getCSharpDirectRules(): DirectRule[] {
     },
     {
       regex: /driver\.FindElement\s*\(\s*By\.XPath\s*\(\s*["']([^"']+)["']\s*\)\s*\)\.Displayed/,
-      replacement: "await page.locator('xpath=$1').isVisible()",
+      replacement: 'await page.locator(`xpath=$1`).isVisible()',
       confidence: 'high',
       category: 'action',
       description: 'FindElement(By.XPath).Displayed → locator.isVisible',
@@ -1632,7 +1851,7 @@ function getCSharpDirectRules(): DirectRule[] {
     {
       regex:
         /(?:(?:IWebElement|var)\s+)?(\w+)\s*=\s*driver\.FindElement\s*\(\s*By\.XPath\s*\(\s*["']([^"']+)["']\s*\)\s*\)/,
-      replacement: "const $1 = page.locator('xpath=$2')",
+      replacement: 'const $1 = page.locator(`xpath=$2`)',
       confidence: 'high',
       category: 'selector',
       description: 'var = FindElement(By.XPath) → const = locator',
@@ -2318,7 +2537,7 @@ function getAppiumDirectRules(): DirectRule[] {
     },
     {
       regex: /MobileElement\s+(\w+)\s*=\s*driver\.findElementByXPath\s*\(\s*"([^"]+)"\s*\)\s*;?/,
-      replacement: "const $1 = page.locator('xpath=$2')",
+      replacement: 'const $1 = page.locator(`xpath=$2`)',
       confidence: 'medium',
       category: 'selector',
       description: 'MobileElement = findElementByXPath → const = locator',
@@ -2377,7 +2596,7 @@ function getAppiumDirectRules(): DirectRule[] {
     },
     {
       regex: /driver\.findElementByXPath\s*\(\s*"([^"]+)"\s*\)\.click\s*\(\)/,
-      replacement: "await page.locator('xpath=$1').click()",
+      replacement: 'await page.locator(`xpath=$1`).click()',
       confidence: 'medium',
       category: 'action',
       description: 'findElementByXPath.click → locator.click',
@@ -2385,7 +2604,7 @@ function getAppiumDirectRules(): DirectRule[] {
     },
     {
       regex: /driver\.findElementByXPath\s*\(\s*"([^"]+)"\s*\)/,
-      replacement: "page.locator('xpath=$1')",
+      replacement: 'page.locator(`xpath=$1`)',
       confidence: 'medium',
       category: 'selector',
       description: 'findElementByXPath → locator',
@@ -2750,7 +2969,7 @@ function getPythonSeleniumDirectRules(): DirectRule[] {
     {
       regex:
         /(?:self\.)?driver\.find_element\s*\(\s*By\.XPATH\s*,\s*['"]([^'"]+)['"]\s*\)\.send_keys\s*\(\s*(.+?)\s*\)/,
-      replacement: "await page.locator('xpath=$1').fill($2)",
+      replacement: 'await page.locator(`xpath=$1`).fill($2)',
       confidence: 'high',
       category: 'action',
       description: 'find_element(By.XPATH).send_keys → locator.fill',
@@ -2758,14 +2977,14 @@ function getPythonSeleniumDirectRules(): DirectRule[] {
     {
       regex:
         /(?:self\.)?driver\.find_element\s*\(\s*By\.XPATH\s*,\s*['"]([^'"]+)['"]\s*\)\.click\s*\(\)/,
-      replacement: "await page.locator('xpath=$1').click()",
+      replacement: 'await page.locator(`xpath=$1`).click()',
       confidence: 'high',
       category: 'action',
       description: 'find_element(By.XPATH).click → locator.click',
     },
     {
       regex: /(?:self\.)?driver\.find_element\s*\(\s*By\.XPATH\s*,\s*['"]([^'"]+)['"]\s*\)\.text/,
-      replacement: "await page.locator('xpath=$1').textContent()",
+      replacement: 'await page.locator(`xpath=$1`).textContent()',
       confidence: 'high',
       category: 'selector',
       description: 'find_element(By.XPATH).text → locator.textContent',
@@ -2834,7 +3053,7 @@ function getPythonSeleniumDirectRules(): DirectRule[] {
     {
       regex:
         /(\w+)\s*=\s*(?:self\.)?driver\.find_element\s*\(\s*By\.XPATH\s*,\s*['"]([^'"]+)['"]\s*\)/,
-      replacement: "const $1 = page.locator('xpath=$2')",
+      replacement: 'const $1 = page.locator(`xpath=$2`)',
       confidence: 'high',
       category: 'selector',
       description: 'element = find_element(By.XPATH) → const = page.locator',
@@ -2876,7 +3095,7 @@ function getPythonSeleniumDirectRules(): DirectRule[] {
     {
       regex:
         /(\w+)\s*=\s*(?:self\.)?driver\.find_elements\s*\(\s*By\.XPATH\s*,\s*['"]([^'"]+)['"]\s*\)/,
-      replacement: "const $1 = page.locator('xpath=$2')",
+      replacement: 'const $1 = page.locator(`xpath=$2`)',
       confidence: 'high',
       category: 'selector',
       description: 'find_elements(By.XPATH) → page.locator',

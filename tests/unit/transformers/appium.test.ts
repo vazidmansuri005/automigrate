@@ -129,7 +129,7 @@ describe('Appium Advanced Transforms (US-007)', () => {
   });
 
   it('should convert findElementByXPath to page.locator xpath', () => {
-    expect(code).toContain("page.locator('xpath=");
+    expect(code).toContain('page.locator(`xpath=');
     expect(code).not.toContain('driver.findElementByXPath');
   });
 
