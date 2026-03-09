@@ -169,11 +169,17 @@ function getDirectRulesForFramework(
     if (language === 'csharp') {
       return [...getAppiumDirectRules(), ...getCSharpDirectRules()];
     }
+    if (language === 'python') {
+      return [...getAppiumDirectRules(), ...getPythonSeleniumDirectRules()];
+    }
     return [...getAppiumDirectRules(), ...getSeleniumDirectRules()];
   }
   if (framework === 'selenium') {
     if (language === 'csharp') {
       return getCSharpDirectRules();
+    }
+    if (language === 'python') {
+      return getPythonSeleniumDirectRules();
     }
     return getSeleniumDirectRules();
   }
@@ -2556,6 +2562,1015 @@ function getAppiumDirectRules(): DirectRule[] {
   ];
 }
 
+function getPythonSeleniumDirectRules(): DirectRule[] {
+  return [
+    // ── Python Assertions ──
+    {
+      regex: /assert\s+(.+?)\.is_displayed\s*\(\)/,
+      replacement: 'await expect($1).toBeVisible()',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assert is_displayed → expect.toBeVisible',
+    },
+    {
+      regex: /assert\s+(.+?)\.is_enabled\s*\(\)/,
+      replacement: 'await expect($1).toBeEnabled()',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assert is_enabled → expect.toBeEnabled',
+    },
+    {
+      regex: /assert\s+(.+?)\s+==\s+(.+)/,
+      replacement: 'expect($1).toBe($2)',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assert == → expect.toBe',
+    },
+    {
+      regex: /assert\s+(.+?)\s+!=\s+(.+)/,
+      replacement: 'expect($1).not.toBe($2)',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assert != → expect.not.toBe',
+    },
+    {
+      regex: /assert\s+(.+?)\s+in\s+(.+)/,
+      replacement: 'expect($2).toContain($1)',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assert in → expect.toContain',
+    },
+    {
+      regex: /assert\s+(.+?)\s+is\s+not\s+None/,
+      replacement: 'expect($1).toBeTruthy()',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assert is not None → expect.toBeTruthy',
+    },
+    {
+      regex: /assert\s+(.+?)\s+is\s+None/,
+      replacement: 'expect($1).toBeFalsy()',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assert is None → expect.toBeFalsy',
+    },
+    {
+      regex: /assert\s+(.+?)\s+is\s+True/,
+      replacement: 'expect($1).toBe(true)',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assert is True → expect.toBe(true)',
+    },
+    {
+      regex: /assert\s+(.+?)\s+is\s+False/,
+      replacement: 'expect($1).toBe(false)',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assert is False → expect.toBe(false)',
+    },
+    {
+      regex: /self\.assertEqual\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)/,
+      replacement: 'expect($1).toBe($2)',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'self.assertEqual → expect.toBe',
+    },
+    {
+      regex: /self\.assertIn\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)/,
+      replacement: 'expect($2).toContain($1)',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'self.assertIn → expect.toContain',
+    },
+    {
+      regex: /self\.assertTrue\s*\(\s*(.+?)\s*\)/,
+      replacement: 'expect($1).toBeTruthy()',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'self.assertTrue → expect.toBeTruthy',
+    },
+    {
+      regex: /self\.assertFalse\s*\(\s*(.+?)\s*\)/,
+      replacement: 'expect($1).toBeFalsy()',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'self.assertFalse → expect.toBeFalsy',
+    },
+    {
+      regex: /assert\s+len\s*\(\s*(.+?)\s*\)\s*(?:>=?|>)\s*(\d+)/,
+      replacement: 'expect(await $1.count()).toBeGreaterThanOrEqual($2)',
+      confidence: 'medium',
+      category: 'assertion',
+      description: 'assert len >= → expect.count.toBeGreaterThanOrEqual',
+    },
+
+    // ── Python Compound: find_element + action (MUST come before standalone find_element) ──
+    // By.ID
+    {
+      regex:
+        /(?:self\.)?driver\.find_element\s*\(\s*By\.ID\s*,\s*['"]([^'"]+)['"]\s*\)\.send_keys\s*\(\s*(.+?)\s*\)/,
+      replacement: "await page.locator('#$1').fill($2)",
+      confidence: 'high',
+      category: 'action',
+      description: 'find_element(By.ID).send_keys → locator.fill',
+    },
+    {
+      regex:
+        /(?:self\.)?driver\.find_element\s*\(\s*By\.ID\s*,\s*['"]([^'"]+)['"]\s*\)\.click\s*\(\)/,
+      replacement: "await page.locator('#$1').click()",
+      confidence: 'high',
+      category: 'action',
+      description: 'find_element(By.ID).click → locator.click',
+    },
+    {
+      regex:
+        /(?:self\.)?driver\.find_element\s*\(\s*By\.ID\s*,\s*['"]([^'"]+)['"]\s*\)\.clear\s*\(\)/,
+      replacement: "await page.locator('#$1').clear()",
+      confidence: 'high',
+      category: 'action',
+      description: 'find_element(By.ID).clear → locator.clear',
+    },
+    {
+      regex: /(?:self\.)?driver\.find_element\s*\(\s*By\.ID\s*,\s*['"]([^'"]+)['"]\s*\)\.text/,
+      replacement: "await page.locator('#$1').textContent()",
+      confidence: 'high',
+      category: 'selector',
+      description: 'find_element(By.ID).text → locator.textContent',
+    },
+    {
+      regex:
+        /(?:self\.)?driver\.find_element\s*\(\s*By\.ID\s*,\s*['"]([^'"]+)['"]\s*\)\.get_attribute\s*\(\s*(.+?)\s*\)/,
+      replacement: "await page.locator('#$1').getAttribute($2)",
+      confidence: 'high',
+      category: 'selector',
+      description: 'find_element(By.ID).get_attribute → locator.getAttribute',
+    },
+    {
+      regex:
+        /(?:self\.)?driver\.find_element\s*\(\s*By\.ID\s*,\s*['"]([^'"]+)['"]\s*\)\.is_displayed\s*\(\)/,
+      replacement: "await page.locator('#$1').isVisible()",
+      confidence: 'high',
+      category: 'assertion',
+      description: 'find_element(By.ID).is_displayed → locator.isVisible',
+    },
+    // By.CSS_SELECTOR
+    {
+      regex:
+        /(?:self\.)?driver\.find_element\s*\(\s*By\.CSS_SELECTOR\s*,\s*['"]([^'"]+)['"]\s*\)\.send_keys\s*\(\s*(.+?)\s*\)/,
+      replacement: "await page.locator('$1').fill($2)",
+      confidence: 'high',
+      category: 'action',
+      description: 'find_element(By.CSS_SELECTOR).send_keys → locator.fill',
+    },
+    {
+      regex:
+        /(?:self\.)?driver\.find_element\s*\(\s*By\.CSS_SELECTOR\s*,\s*['"]([^'"]+)['"]\s*\)\.click\s*\(\)/,
+      replacement: "await page.locator('$1').click()",
+      confidence: 'high',
+      category: 'action',
+      description: 'find_element(By.CSS_SELECTOR).click → locator.click',
+    },
+    {
+      regex:
+        /(?:self\.)?driver\.find_element\s*\(\s*By\.CSS_SELECTOR\s*,\s*['"]([^'"]+)['"]\s*\)\.clear\s*\(\)/,
+      replacement: "await page.locator('$1').clear()",
+      confidence: 'high',
+      category: 'action',
+      description: 'find_element(By.CSS_SELECTOR).clear → locator.clear',
+    },
+    {
+      regex:
+        /(?:self\.)?driver\.find_element\s*\(\s*By\.CSS_SELECTOR\s*,\s*['"]([^'"]+)['"]\s*\)\.text/,
+      replacement: "await page.locator('$1').textContent()",
+      confidence: 'high',
+      category: 'selector',
+      description: 'find_element(By.CSS_SELECTOR).text → locator.textContent',
+    },
+    // By.XPATH
+    {
+      regex:
+        /(?:self\.)?driver\.find_element\s*\(\s*By\.XPATH\s*,\s*['"]([^'"]+)['"]\s*\)\.send_keys\s*\(\s*(.+?)\s*\)/,
+      replacement: "await page.locator('xpath=$1').fill($2)",
+      confidence: 'high',
+      category: 'action',
+      description: 'find_element(By.XPATH).send_keys → locator.fill',
+    },
+    {
+      regex:
+        /(?:self\.)?driver\.find_element\s*\(\s*By\.XPATH\s*,\s*['"]([^'"]+)['"]\s*\)\.click\s*\(\)/,
+      replacement: "await page.locator('xpath=$1').click()",
+      confidence: 'high',
+      category: 'action',
+      description: 'find_element(By.XPATH).click → locator.click',
+    },
+    {
+      regex: /(?:self\.)?driver\.find_element\s*\(\s*By\.XPATH\s*,\s*['"]([^'"]+)['"]\s*\)\.text/,
+      replacement: "await page.locator('xpath=$1').textContent()",
+      confidence: 'high',
+      category: 'selector',
+      description: 'find_element(By.XPATH).text → locator.textContent',
+    },
+    // By.NAME
+    {
+      regex:
+        /(?:self\.)?driver\.find_element\s*\(\s*By\.NAME\s*,\s*['"]([^'"]+)['"]\s*\)\.send_keys\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.locator(\'[name="$1"]\').fill($2)',
+      confidence: 'high',
+      category: 'action',
+      description: 'find_element(By.NAME).send_keys → locator.fill',
+    },
+    {
+      regex:
+        /(?:self\.)?driver\.find_element\s*\(\s*By\.NAME\s*,\s*['"]([^'"]+)['"]\s*\)\.click\s*\(\)/,
+      replacement: 'await page.locator(\'[name="$1"]\').click()',
+      confidence: 'high',
+      category: 'action',
+      description: 'find_element(By.NAME).click → locator.click',
+    },
+    // By.CLASS_NAME
+    {
+      regex:
+        /(?:self\.)?driver\.find_element\s*\(\s*By\.CLASS_NAME\s*,\s*['"]([^'"]+)['"]\s*\)\.click\s*\(\)/,
+      replacement: "await page.locator('.$1').click()",
+      confidence: 'high',
+      category: 'action',
+      description: 'find_element(By.CLASS_NAME).click → locator.click',
+    },
+    {
+      regex:
+        /(?:self\.)?driver\.find_element\s*\(\s*By\.CLASS_NAME\s*,\s*['"]([^'"]+)['"]\s*\)\.text/,
+      replacement: "await page.locator('.$1').textContent()",
+      confidence: 'high',
+      category: 'selector',
+      description: 'find_element(By.CLASS_NAME).text → locator.textContent',
+    },
+    // By.LINK_TEXT
+    {
+      regex:
+        /(?:self\.)?driver\.find_element\s*\(\s*By\.LINK_TEXT\s*,\s*['"]([^'"]+)['"]\s*\)\.click\s*\(\)/,
+      replacement: "await page.getByRole('link', { name: '$1' }).click()",
+      confidence: 'high',
+      category: 'action',
+      description: 'find_element(By.LINK_TEXT).click → getByRole(link).click',
+    },
+
+    // ── Generic find_element variable assignment ──
+    {
+      regex:
+        /(\w+)\s*=\s*(?:self\.)?driver\.find_element\s*\(\s*By\.ID\s*,\s*['"]([^'"]+)['"]\s*\)/,
+      replacement: "const $1 = page.locator('#$2')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'element = find_element(By.ID) → const = page.locator',
+    },
+    {
+      regex:
+        /(\w+)\s*=\s*(?:self\.)?driver\.find_element\s*\(\s*By\.CSS_SELECTOR\s*,\s*['"]([^'"]+)['"]\s*\)/,
+      replacement: "const $1 = page.locator('$2')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'element = find_element(By.CSS_SELECTOR) → const = page.locator',
+    },
+    {
+      regex:
+        /(\w+)\s*=\s*(?:self\.)?driver\.find_element\s*\(\s*By\.XPATH\s*,\s*['"]([^'"]+)['"]\s*\)/,
+      replacement: "const $1 = page.locator('xpath=$2')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'element = find_element(By.XPATH) → const = page.locator',
+    },
+    {
+      regex:
+        /(\w+)\s*=\s*(?:self\.)?driver\.find_element\s*\(\s*By\.NAME\s*,\s*['"]([^'"]+)['"]\s*\)/,
+      replacement: 'const $1 = page.locator(\'[name="$2"]\')',
+      confidence: 'high',
+      category: 'selector',
+      description: 'element = find_element(By.NAME) → const = page.locator',
+    },
+    {
+      regex:
+        /(\w+)\s*=\s*(?:self\.)?driver\.find_element\s*\(\s*By\.CLASS_NAME\s*,\s*['"]([^'"]+)['"]\s*\)/,
+      replacement: "const $1 = page.locator('.$2')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'element = find_element(By.CLASS_NAME) → const = page.locator',
+    },
+
+    // ── find_elements (plural) ──
+    {
+      regex:
+        /(\w+)\s*=\s*(?:self\.)?driver\.find_elements\s*\(\s*By\.CSS_SELECTOR\s*,\s*['"]([^'"]+)['"]\s*\)/,
+      replacement: "const $1 = page.locator('$2')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'find_elements(By.CSS_SELECTOR) → page.locator',
+    },
+    {
+      regex:
+        /(\w+)\s*=\s*(?:self\.)?driver\.find_elements\s*\(\s*By\.ID\s*,\s*['"]([^'"]+)['"]\s*\)/,
+      replacement: "const $1 = page.locator('#$2')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'find_elements(By.ID) → page.locator',
+    },
+    {
+      regex:
+        /(\w+)\s*=\s*(?:self\.)?driver\.find_elements\s*\(\s*By\.XPATH\s*,\s*['"]([^'"]+)['"]\s*\)/,
+      replacement: "const $1 = page.locator('xpath=$2')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'find_elements(By.XPATH) → page.locator',
+    },
+
+    // ── Variable-based element actions (element.send_keys, element.click, etc.) ──
+    {
+      regex: /(\w+)\.send_keys\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await $1.fill($2)',
+      confidence: 'high',
+      category: 'action',
+      description: 'element.send_keys → locator.fill',
+    },
+    {
+      regex: /(\w+)\.clear\s*\(\)/,
+      replacement: 'await $1.clear()',
+      confidence: 'high',
+      category: 'action',
+      description: 'element.clear → locator.clear',
+    },
+    {
+      regex: /(\w+)\.click\s*\(\)/,
+      replacement: 'await $1.click()',
+      confidence: 'high',
+      category: 'action',
+      description: 'element.click → locator.click',
+    },
+    {
+      regex: /(\w+)\.submit\s*\(\)/,
+      replacement: 'await $1.press("Enter")',
+      confidence: 'medium',
+      category: 'action',
+      description: 'element.submit → locator.press(Enter)',
+    },
+
+    // ── Select Dropdowns ──
+    {
+      regex:
+        /Select\s*\(\s*(?:self\.)?driver\.find_element\s*\(\s*By\.ID\s*,\s*['"]([^'"]+)['"]\s*\)\s*\)\.select_by_visible_text\s*\(\s*(.+?)\s*\)/,
+      replacement: "await page.locator('#$1').selectOption({ label: $2 })",
+      confidence: 'high',
+      category: 'action',
+      description: 'Select.select_by_visible_text → selectOption(label)',
+    },
+    {
+      regex:
+        /Select\s*\(\s*(?:self\.)?driver\.find_element\s*\(\s*By\.ID\s*,\s*['"]([^'"]+)['"]\s*\)\s*\)\.select_by_value\s*\(\s*(.+?)\s*\)/,
+      replacement: "await page.locator('#$1').selectOption($2)",
+      confidence: 'high',
+      category: 'action',
+      description: 'Select.select_by_value → selectOption',
+    },
+    {
+      regex: /(\w+)\.select_by_visible_text\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await $1.selectOption({ label: $2 })',
+      confidence: 'high',
+      category: 'action',
+      description: 'select_by_visible_text → selectOption(label)',
+    },
+    {
+      regex: /(\w+)\.select_by_value\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await $1.selectOption($2)',
+      confidence: 'high',
+      category: 'action',
+      description: 'select_by_value → selectOption',
+    },
+    {
+      regex: /(\w+)\.select_by_index\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await $1.selectOption({ index: $2 })',
+      confidence: 'high',
+      category: 'action',
+      description: 'select_by_index → selectOption(index)',
+    },
+
+    // ── Navigation ──
+    {
+      regex: /(?:self\.)?driver\.get\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.goto($1)',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'driver.get → page.goto',
+    },
+    {
+      regex: /(?:self\.)?driver\.back\s*\(\)/,
+      replacement: 'await page.goBack()',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'driver.back → page.goBack',
+    },
+    {
+      regex: /(?:self\.)?driver\.forward\s*\(\)/,
+      replacement: 'await page.goForward()',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'driver.forward → page.goForward',
+    },
+    {
+      regex: /(?:self\.)?driver\.refresh\s*\(\)/,
+      replacement: 'await page.reload()',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'driver.refresh → page.reload',
+    },
+    {
+      regex: /(?:self\.)?driver\.title/,
+      replacement: 'await page.title()',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'driver.title → page.title()',
+    },
+    {
+      regex: /(?:self\.)?driver\.current_url/,
+      replacement: 'page.url()',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'driver.current_url → page.url()',
+    },
+    {
+      regex: /(?:self\.)?driver\.page_source/,
+      replacement: 'await page.content()',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'driver.page_source → page.content()',
+    },
+
+    // ── JavaScript execution ──
+    {
+      regex: /(?:self\.)?driver\.execute_script\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.evaluate($1)',
+      confidence: 'high',
+      category: 'action',
+      description: 'driver.execute_script → page.evaluate',
+    },
+    {
+      regex: /(?:self\.)?driver\.execute_async_script\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.evaluate($1)',
+      confidence: 'medium',
+      category: 'action',
+      description: 'driver.execute_async_script → page.evaluate',
+      requiresManualReview: true,
+    },
+
+    // ── Frame switching ──
+    {
+      regex: /(?:self\.)?driver\.switch_to\.frame\s*\(\s*(.+?)\s*\)/,
+      replacement: '// [automigrate] Frame: use page.frameLocator($1) instead of switch_to.frame',
+      confidence: 'medium',
+      category: 'navigation',
+      description: 'switch_to.frame → frameLocator',
+      requiresManualReview: true,
+    },
+    {
+      regex: /(?:self\.)?driver\.switch_to\.default_content\s*\(\)/,
+      replacement: '// [automigrate] switchToDefaultContent — use parent page reference instead',
+      confidence: 'medium',
+      category: 'navigation',
+      description: 'switch_to.default_content → parent page reference',
+    },
+    {
+      regex: /(?:self\.)?driver\.switch_to\.parent_frame\s*\(\)/,
+      replacement: '// [automigrate] switchToParentFrame — use parent frameLocator reference',
+      confidence: 'medium',
+      category: 'navigation',
+      description: 'switch_to.parent_frame → parent frameLocator',
+    },
+
+    // ── Alert handling ──
+    {
+      regex: /(?:self\.)?driver\.switch_to\.alert\.accept\s*\(\)/,
+      replacement: "page.on('dialog', dialog => dialog.accept())",
+      confidence: 'medium',
+      category: 'action',
+      description: 'switch_to.alert.accept → dialog.accept',
+      requiresManualReview: true,
+    },
+    {
+      regex: /(?:self\.)?driver\.switch_to\.alert\.dismiss\s*\(\)/,
+      replacement: "page.on('dialog', dialog => dialog.dismiss())",
+      confidence: 'medium',
+      category: 'action',
+      description: 'switch_to.alert.dismiss → dialog.dismiss',
+      requiresManualReview: true,
+    },
+    {
+      regex: /(?:self\.)?driver\.switch_to\.alert\.text/,
+      replacement: '// [automigrate] Alert text: capture in dialog handler — dialog.message()',
+      confidence: 'medium',
+      category: 'action',
+      description: 'switch_to.alert.text → dialog.message()',
+      requiresManualReview: true,
+    },
+
+    // ── Cookies ──
+    {
+      regex: /(?:self\.)?driver\.get_cookies\s*\(\)/,
+      replacement: 'await context.cookies()',
+      confidence: 'high',
+      category: 'action',
+      description: 'driver.get_cookies → context.cookies',
+    },
+    {
+      regex: /(?:self\.)?driver\.add_cookie\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await context.addCookies([$1])',
+      confidence: 'high',
+      category: 'action',
+      description: 'driver.add_cookie → context.addCookies',
+    },
+    {
+      regex: /(?:self\.)?driver\.delete_all_cookies\s*\(\)/,
+      replacement: 'await context.clearCookies()',
+      confidence: 'high',
+      category: 'action',
+      description: 'driver.delete_all_cookies → context.clearCookies',
+    },
+
+    // ── Waits ──
+    {
+      regex:
+        /WebDriverWait\s*\(\s*(?:self\.)?driver\s*,\s*(\d+)\s*\)\.until\s*\(\s*EC\.presence_of_element_located\s*\(\s*\(\s*By\.ID\s*,\s*['"]([^'"]+)['"]\s*\)\s*\)\s*\)/,
+      replacement: "await page.locator('#$2').waitFor({ timeout: $1 * 1000 })",
+      confidence: 'high',
+      category: 'wait',
+      description: 'WebDriverWait.until(presence) → locator.waitFor',
+    },
+    {
+      regex:
+        /WebDriverWait\s*\(\s*(?:self\.)?driver\s*,\s*(\d+)\s*\)\.until\s*\(\s*EC\.visibility_of_element_located\s*\(\s*\(\s*By\.CSS_SELECTOR\s*,\s*['"]([^'"]+)['"]\s*\)\s*\)\s*\)/,
+      replacement: "await page.locator('$2').waitFor({ state: 'visible', timeout: $1 * 1000 })",
+      confidence: 'high',
+      category: 'wait',
+      description: 'WebDriverWait.until(visibility) → locator.waitFor(visible)',
+    },
+    {
+      regex:
+        /WebDriverWait\s*\(\s*(?:self\.)?driver\s*,\s*(\d+)\s*\)\.until\s*\(\s*EC\.element_to_be_clickable\s*\(\s*\(\s*By\.(?:ID|CSS_SELECTOR)\s*,\s*['"]([^'"]+)['"]\s*\)\s*\)\s*\)/,
+      replacement: "await page.locator('$2').waitFor({ state: 'visible', timeout: $1 * 1000 })",
+      confidence: 'high',
+      category: 'wait',
+      description: 'WebDriverWait.until(clickable) → locator.waitFor(visible)',
+    },
+    {
+      regex:
+        /WebDriverWait\s*\(\s*(?:self\.)?driver\s*,\s*(\d+)\s*\)\.until\s*\(\s*EC\.alert_is_present\s*\(\)\s*\)/,
+      replacement:
+        "// [automigrate] Wait for alert: use page.on('dialog', handler) before triggering action",
+      confidence: 'medium',
+      category: 'wait',
+      description: 'WebDriverWait(alert_is_present) → dialog handler',
+      requiresManualReview: true,
+    },
+    {
+      regex: /time\.sleep\s*\(\s*(.+?)\s*\)/,
+      replacement: '// [automigrate] Removed time.sleep($1) — Playwright auto-waits',
+      confidence: 'high',
+      category: 'wait',
+      description: 'time.sleep → auto-wait',
+    },
+
+    // ── ActionChains ──
+    {
+      regex:
+        /ActionChains\s*\(\s*(?:self\.)?driver\s*\)\.drag_and_drop\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)\.perform\s*\(\)/,
+      replacement: 'await $1.dragTo($2)',
+      confidence: 'high',
+      category: 'action',
+      description: 'ActionChains.drag_and_drop → dragTo',
+    },
+    {
+      regex:
+        /ActionChains\s*\(\s*(?:self\.)?driver\s*\)\.context_click\s*\(\s*(.+?)\s*\)\.perform\s*\(\)/,
+      replacement: 'await $1.click({ button: "right" })',
+      confidence: 'high',
+      category: 'action',
+      description: 'ActionChains.context_click → click(right)',
+    },
+    {
+      regex:
+        /ActionChains\s*\(\s*(?:self\.)?driver\s*\)\.double_click\s*\(\s*(.+?)\s*\)\.perform\s*\(\)/,
+      replacement: 'await $1.dblclick()',
+      confidence: 'high',
+      category: 'action',
+      description: 'ActionChains.double_click → dblclick',
+    },
+    {
+      regex:
+        /ActionChains\s*\(\s*(?:self\.)?driver\s*\)\.move_to_element\s*\(\s*(.+?)\s*\)\.perform\s*\(\)/,
+      replacement: 'await $1.hover()',
+      confidence: 'high',
+      category: 'action',
+      description: 'ActionChains.move_to_element → hover',
+    },
+
+    // ── Screenshots / Window ──
+    {
+      regex: /(?:self\.)?driver\.save_screenshot\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.screenshot({ path: $1 })',
+      confidence: 'high',
+      category: 'action',
+      description: 'driver.save_screenshot → page.screenshot',
+    },
+    {
+      regex: /(?:self\.)?driver\.set_window_size\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)/,
+      replacement: 'await page.setViewportSize({ width: $1, height: $2 })',
+      confidence: 'high',
+      category: 'action',
+      description: 'driver.set_window_size → page.setViewportSize',
+    },
+    {
+      regex: /(?:self\.)?driver\.maximize_window\s*\(\)/,
+      replacement:
+        '// [automigrate] Playwright: set viewport in config or use page.setViewportSize()',
+      confidence: 'medium',
+      category: 'action',
+      description: 'driver.maximize_window → setViewportSize',
+    },
+
+    // ── Driver lifecycle (skip/cleanup) ──
+    {
+      regex: /(?:self\.)?driver\.quit\s*\(\)/,
+      replacement: '// [automigrate] Playwright handles browser cleanup',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'driver.quit → handled by Playwright',
+    },
+    {
+      regex: /(?:self\.)?driver\.close\s*\(\)/,
+      replacement: '// [automigrate] Playwright handles page cleanup',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'driver.close → handled by Playwright',
+    },
+
+    // ── Python boilerplate to skip ──
+    {
+      regex: /^\s*from\s+selenium/,
+      replacement: '__SKIP__',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'Skip selenium import',
+    },
+    {
+      regex: /^\s*from\s+webdriver_manager/,
+      replacement: '__SKIP__',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'Skip webdriver_manager import',
+    },
+    {
+      regex: /^\s*import\s+(?:time|unittest|pytest)/,
+      replacement: '__SKIP__',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'Skip Python stdlib imports',
+    },
+    {
+      regex:
+        /^\s*(?:self\.)?driver\s*=\s*(?:webdriver\.Chrome|webdriver\.Firefox|webdriver\.Edge|ChromiumDriver|uc\.Chrome)\s*\(/,
+      replacement: '// [automigrate] Playwright test provides page fixture automatically',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'Skip driver instantiation',
+    },
+    {
+      regex: /^\s*class\s+\w+.*(?:unittest\.TestCase|BaseCase)/,
+      replacement: '__SKIP__',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'Skip test class declaration',
+    },
+    {
+      regex: /^\s*def\s+(?:setUp|tearDown|setUpClass|tearDownClass)\s*\(\s*(?:self|cls)\s*\)/,
+      replacement: '__SKIP__',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'Skip Python test lifecycle methods',
+    },
+    {
+      regex: /^\s*def\s+test_\w+\s*\(\s*self\s*(?:,\s*\w+)*\s*\):/,
+      replacement: '__SKIP__',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'Skip Python test method definition (wrapped by test())',
+    },
+    {
+      regex: /^\s*if\s+__name__\s*==\s*['"]__main__['"]/,
+      replacement: '__SKIP__',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'Skip if __name__ == __main__',
+    },
+    {
+      regex: /^\s*unittest\.main\s*\(/,
+      replacement: '__SKIP__',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'Skip unittest.main',
+    },
+    {
+      regex: /^\s*pytest\.main\s*\(/,
+      replacement: '__SKIP__',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'Skip pytest.main',
+    },
+
+    // ── SeleniumBase-specific methods ──
+    {
+      regex: /self\.open\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.goto($1)',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'self.open → page.goto',
+    },
+    {
+      regex: /self\.click\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.locator($1).click()',
+      confidence: 'high',
+      category: 'action',
+      description: 'self.click → locator.click',
+    },
+    {
+      regex: /self\.type\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)/,
+      replacement: 'await page.locator($1).fill($2)',
+      confidence: 'high',
+      category: 'action',
+      description: 'self.type → locator.fill',
+    },
+    {
+      regex: /self\.assert_element\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await expect(page.locator($1)).toBeVisible()',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'self.assert_element → expect.toBeVisible',
+    },
+    {
+      regex: /self\.assert_text\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)/,
+      replacement: 'await expect(page.locator($2)).toContainText($1)',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'self.assert_text → expect.toContainText',
+    },
+    {
+      regex: /self\.assert_text\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await expect(page.locator("body")).toContainText($1)',
+      confidence: 'medium',
+      category: 'assertion',
+      description: 'self.assert_text(text) → expect(body).toContainText',
+    },
+    {
+      regex: /self\.assert_title\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await expect(page).toHaveTitle($1)',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'self.assert_title → expect.toHaveTitle',
+    },
+    {
+      regex: /self\.assert_url\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await expect(page).toHaveURL($1)',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'self.assert_url → expect.toHaveURL',
+    },
+    {
+      regex: /self\.assert_url_contains\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await expect(page).toHaveURL(new RegExp($1))',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'self.assert_url_contains → expect.toHaveURL(regex)',
+    },
+    {
+      regex: /self\.get_text\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.locator($1).textContent()',
+      confidence: 'high',
+      category: 'selector',
+      description: 'self.get_text → locator.textContent',
+    },
+    {
+      regex: /self\.get_attribute\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)/,
+      replacement: 'await page.locator($1).getAttribute($2)',
+      confidence: 'high',
+      category: 'selector',
+      description: 'self.get_attribute → locator.getAttribute',
+    },
+    {
+      regex: /self\.is_element_visible\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.locator($1).isVisible()',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'self.is_element_visible → locator.isVisible',
+    },
+    {
+      regex: /self\.is_element_present\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.locator($1).count() > 0',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'self.is_element_present → locator.count',
+    },
+    {
+      regex: /self\.wait_for_element\s*\(\s*(.+?)\s*(?:,\s*timeout\s*=\s*(\d+))?\s*\)/,
+      replacement: 'await page.locator($1).waitFor()',
+      confidence: 'high',
+      category: 'wait',
+      description: 'self.wait_for_element → locator.waitFor',
+    },
+    {
+      regex: /self\.wait_for_element_visible\s*\(\s*(.+?)\s*(?:,\s*timeout\s*=\s*(\d+))?\s*\)/,
+      replacement: "await page.locator($1).waitFor({ state: 'visible' })",
+      confidence: 'high',
+      category: 'wait',
+      description: 'self.wait_for_element_visible → locator.waitFor(visible)',
+    },
+    {
+      regex: /self\.wait_for_element_not_visible\s*\(\s*(.+?)\s*\)/,
+      replacement: "await page.locator($1).waitFor({ state: 'hidden' })",
+      confidence: 'high',
+      category: 'wait',
+      description: 'self.wait_for_element_not_visible → locator.waitFor(hidden)',
+    },
+    {
+      regex: /self\.sleep\s*\(\s*(.+?)\s*\)/,
+      replacement: '// [automigrate] Removed self.sleep($1) — Playwright auto-waits',
+      confidence: 'high',
+      category: 'wait',
+      description: 'self.sleep → auto-wait',
+    },
+    {
+      regex: /self\.scroll_to_element\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.locator($1).scrollIntoViewIfNeeded()',
+      confidence: 'high',
+      category: 'action',
+      description: 'self.scroll_to_element → scrollIntoViewIfNeeded',
+    },
+    {
+      regex: /self\.highlight\s*\(\s*(.+?)\s*\)/,
+      replacement:
+        '// [automigrate] self.highlight($1) — visual debugging, no Playwright equivalent',
+      confidence: 'medium',
+      category: 'action',
+      description: 'self.highlight → no equivalent',
+    },
+    {
+      regex: /self\.switch_to_frame\s*\(\s*(.+?)\s*\)/,
+      replacement: '// [automigrate] Use page.frameLocator($1) for frame interactions',
+      confidence: 'medium',
+      category: 'navigation',
+      description: 'self.switch_to_frame → frameLocator',
+      requiresManualReview: true,
+    },
+    {
+      regex: /self\.switch_to_default_content\s*\(\)/,
+      replacement: '// [automigrate] Use parent page reference after frameLocator operations',
+      confidence: 'medium',
+      category: 'navigation',
+      description: 'self.switch_to_default_content → parent page',
+    },
+    {
+      regex: /self\.accept_alert\s*\(\)/,
+      replacement: "page.on('dialog', dialog => dialog.accept())",
+      confidence: 'medium',
+      category: 'action',
+      description: 'self.accept_alert → dialog.accept',
+      requiresManualReview: true,
+    },
+    {
+      regex: /self\.dismiss_alert\s*\(\)/,
+      replacement: "page.on('dialog', dialog => dialog.dismiss())",
+      confidence: 'medium',
+      category: 'action',
+      description: 'self.dismiss_alert → dialog.dismiss',
+      requiresManualReview: true,
+    },
+    {
+      regex: /self\.js_click\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.locator($1).click({ force: true })',
+      confidence: 'high',
+      category: 'action',
+      description: 'self.js_click → locator.click(force)',
+    },
+    {
+      regex: /self\.double_click\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.locator($1).dblclick()',
+      confidence: 'high',
+      category: 'action',
+      description: 'self.double_click → locator.dblclick',
+    },
+    {
+      regex: /self\.hover_and_click\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)/,
+      replacement: 'await page.locator($1).hover(); await page.locator($2).click()',
+      confidence: 'high',
+      category: 'action',
+      description: 'self.hover_and_click → hover + click',
+    },
+    {
+      regex: /self\.select_option_by_text\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)/,
+      replacement: 'await page.locator($1).selectOption({ label: $2 })',
+      confidence: 'high',
+      category: 'action',
+      description: 'self.select_option_by_text → selectOption(label)',
+    },
+    {
+      regex: /self\.select_option_by_value\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)/,
+      replacement: 'await page.locator($1).selectOption($2)',
+      confidence: 'high',
+      category: 'action',
+      description: 'self.select_option_by_value → selectOption',
+    },
+    {
+      regex: /self\.choose_file\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)/,
+      replacement: 'await page.locator($1).setInputFiles($2)',
+      confidence: 'high',
+      category: 'action',
+      description: 'self.choose_file → locator.setInputFiles',
+    },
+    {
+      regex: /self\.save_screenshot\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.screenshot({ path: $1 })',
+      confidence: 'high',
+      category: 'action',
+      description: 'self.save_screenshot → page.screenshot',
+    },
+    {
+      regex: /self\.get_current_url\s*\(\)/,
+      replacement: 'page.url()',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'self.get_current_url → page.url',
+    },
+    {
+      regex: /self\.get_title\s*\(\)/,
+      replacement: 'await page.title()',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'self.get_title → page.title',
+    },
+    {
+      regex: /self\.go_back\s*\(\)/,
+      replacement: 'await page.goBack()',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'self.go_back → page.goBack',
+    },
+    {
+      regex: /self\.go_forward\s*\(\)/,
+      replacement: 'await page.goForward()',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'self.go_forward → page.goForward',
+    },
+
+    // ── Python with context manager ──
+    {
+      regex: /^\s*with\s+self\.frame_switch\s*\(\s*(.+?)\s*\)\s*:/,
+      replacement:
+        '// [automigrate] Use const frame = page.frameLocator($1); then frame.locator(...)',
+      confidence: 'medium',
+      category: 'navigation',
+      description: 'with frame_switch → frameLocator',
+      requiresManualReview: true,
+    },
+
+    // ── Python triple-quote docstrings to skip ──
+    {
+      regex: /^\s*""".*"""$/,
+      replacement: '__SKIP__',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'Skip single-line docstring',
+    },
+    {
+      regex: /^\s*"""/,
+      replacement: '__SKIP__',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'Skip docstring delimiter',
+    },
+
+    // ── Python decorators ──
+    {
+      regex: /^\s*@pytest\.mark\.\w+/,
+      replacement: '__SKIP__',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'Skip pytest decorators',
+    },
+    {
+      regex: /^\s*@pytest\.fixture/,
+      replacement: '__SKIP__',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'Skip pytest fixture decorator',
+    },
+  ];
+}
+
 function getCypressDirectRules(): DirectRule[] {
   return [
     // ── Navigation ──
@@ -2755,6 +3770,202 @@ function getCypressDirectRules(): DirectRule[] {
       category: 'navigation',
       description: 'cy.go(forward) → page.goForward',
     },
+
+    // ── Cypress.env() ──
+    {
+      regex: /Cypress\.env\s*\(\s*['"]([^'"]+)['"]\s*\)/,
+      replacement: "process.env['$1']",
+      confidence: 'high',
+      category: 'action',
+      description: 'Cypress.env → process.env',
+    },
+
+    // ── cy.intercept with fixture ──
+    {
+      regex: /cy\.intercept\s*\(\s*['"](.+?)['"]\s*,\s*\{\s*fixture:\s*['"](.+?)['"]\s*\}\s*\)/,
+      replacement: "await page.route('$1', route => route.fulfill({ path: 'fixtures/$2' }))",
+      confidence: 'high',
+      category: 'action',
+      description: 'cy.intercept(fixture) → page.route(fulfill)',
+    },
+
+    // ── cy.task → comment ──
+    {
+      regex: /cy\.task\s*\(\s*(.+?)\s*\)/,
+      replacement: '// [automigrate] cy.task($1) → use test fixtures or API calls',
+      confidence: 'low',
+      category: 'action',
+      description: 'cy.task → manual conversion',
+      requiresManualReview: true,
+    },
+
+    // ── cy.focused ──
+    {
+      regex: /cy\.focused\(\)\.clear\(\)\.type\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.locator(":focus").fill($1)',
+      confidence: 'high',
+      category: 'action',
+      description: 'cy.focused.clear.type → locator(:focus).fill',
+    },
+    {
+      regex: /cy\.focused\(\)\.type\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.locator(":focus").fill($1)',
+      confidence: 'high',
+      category: 'action',
+      description: 'cy.focused.type → locator(:focus).fill',
+    },
+
+    // ── cy.get with .first / .last / .eq ──
+    {
+      regex: /cy\.get\s*\(\s*(.+?)\s*\)\.first\(\)\.click\s*\(\)/,
+      replacement: 'await page.locator($1).first().click()',
+      confidence: 'high',
+      category: 'action',
+      description: 'cy.get.first.click → locator.first.click',
+    },
+    {
+      regex: /cy\.get\s*\(\s*(.+?)\s*\)\.last\(\)\.click\s*\(\)/,
+      replacement: 'await page.locator($1).last().click()',
+      confidence: 'high',
+      category: 'action',
+      description: 'cy.get.last.click → locator.last.click',
+    },
+    {
+      regex: /cy\.get\s*\(\s*(.+?)\s*\)\.eq\s*\(\s*(\d+)\s*\)\.click\s*\(\)/,
+      replacement: 'await page.locator($1).nth($2).click()',
+      confidence: 'high',
+      category: 'action',
+      description: 'cy.get.eq.click → locator.nth.click',
+    },
+    {
+      regex:
+        /cy\.get\s*\(\s*(.+?)\s*\)\.its\s*\(\s*['"]length['"]\s*\)\.should\s*\(\s*['"]be\.gte?['"]\s*,\s*(\d+)\s*\)/,
+      replacement: 'expect(await page.locator($1).count()).toBeGreaterThanOrEqual($2)',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'cy.get.its(length).should(gte) → locator.count',
+    },
+
+    // ── cy.get.find ──
+    {
+      regex: /cy\.get\s*\(\s*(.+?)\s*\)\.find\s*\(\s*(.+?)\s*\)\.click\s*\(\)/,
+      replacement: 'await page.locator($1).locator($2).click()',
+      confidence: 'high',
+      category: 'action',
+      description: 'cy.get.find.click → locator.locator.click',
+    },
+    {
+      regex: /cy\.get\s*\(\s*(.+?)\s*\)\.find\s*\(\s*(.+?)\s*\)/,
+      replacement: 'page.locator($1).locator($2)',
+      confidence: 'high',
+      category: 'selector',
+      description: 'cy.get.find → locator.locator',
+    },
+
+    // ── cy.get with force click ──
+    {
+      regex: /cy\.get\s*\(\s*(.+?)\s*\)\.click\s*\(\s*\{\s*force:\s*true\s*\}\s*\)/,
+      replacement: 'await page.locator($1).click({ force: true })',
+      confidence: 'high',
+      category: 'action',
+      description: 'cy.get.click(force) → locator.click(force)',
+    },
+
+    // ── cy.get.scrollIntoView ──
+    {
+      regex: /cy\.get\s*\(\s*(.+?)\s*\)\.scrollIntoView\s*\(\)/,
+      replacement: 'await page.locator($1).scrollIntoViewIfNeeded()',
+      confidence: 'high',
+      category: 'action',
+      description: 'cy.get.scrollIntoView → scrollIntoViewIfNeeded',
+    },
+
+    // ── Additional assertions ──
+    {
+      regex: /cy\.get\s*\(\s*(.+?)\s*\)\.should\s*\(\s*['"]be\.disabled['"]\s*\)/,
+      replacement: 'await expect(page.locator($1)).toBeDisabled()',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'cy.get.should(be.disabled) → expect.toBeDisabled',
+    },
+    {
+      regex: /cy\.get\s*\(\s*(.+?)\s*\)\.should\s*\(\s*['"]be\.enabled['"]\s*\)/,
+      replacement: 'await expect(page.locator($1)).toBeEnabled()',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'cy.get.should(be.enabled) → expect.toBeEnabled',
+    },
+    {
+      regex: /cy\.get\s*\(\s*(.+?)\s*\)\.should\s*\(\s*['"]be\.checked['"]\s*\)/,
+      replacement: 'await expect(page.locator($1)).toBeChecked()',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'cy.get.should(be.checked) → expect.toBeChecked',
+    },
+    {
+      regex: /cy\.get\s*\(\s*(.+?)\s*\)\.should\s*\(\s*['"]have\.class['"]\s*,\s*(.+?)\s*\)/,
+      replacement: 'await expect(page.locator($1)).toHaveClass(new RegExp($2))',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'cy.get.should(have.class) → expect.toHaveClass',
+    },
+    {
+      regex: /cy\.get\s*\(\s*(.+?)\s*\)\.should\s*\(\s*['"]not\.exist['"]\s*\)/,
+      replacement: 'await expect(page.locator($1)).toHaveCount(0)',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'cy.get.should(not.exist) → expect.toHaveCount(0)',
+    },
+
+    // ── cy.clock / cy.tick ──
+    {
+      regex: /cy\.clock\s*\(\)/,
+      replacement: 'await page.clock.install()',
+      confidence: 'high',
+      category: 'action',
+      description: 'cy.clock → page.clock.install',
+    },
+    {
+      regex: /cy\.tick\s*\(\s*(\d+)\s*\)/,
+      replacement: 'await page.clock.fastForward($1)',
+      confidence: 'high',
+      category: 'action',
+      description: 'cy.tick → page.clock.fastForward',
+    },
+
+    // ── cy.location ──
+    {
+      regex: /cy\.location\s*\(\s*['"]pathname['"]\s*\)\.should\s*\(\s*['"]eq['"]\s*,\s*(.+?)\s*\)/,
+      replacement: 'expect(new URL(page.url()).pathname).toBe($1)',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'cy.location(pathname).should(eq) → URL.pathname',
+    },
+
+    // ── Cypress boilerplate to skip ──
+    {
+      regex: /^\s*\/\/\/\s*<reference\s+types="cypress"\s*\/>/,
+      replacement: '__SKIP__',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'Skip Cypress triple-slash reference',
+    },
+    {
+      regex: /^\s*Cypress\.Commands\.add\s*\(/,
+      replacement:
+        '// [automigrate] Custom command — convert to Playwright fixture or helper function',
+      confidence: 'low',
+      category: 'action',
+      description: 'Cypress.Commands.add → fixture/helper',
+      requiresManualReview: true,
+    },
+    {
+      regex: /^\s*import\s+.*['"]\.\.\/support/,
+      replacement: '__SKIP__',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'Skip Cypress support import',
+    },
   ];
 }
 
@@ -2791,6 +4002,24 @@ function getPuppeteerDirectRules(): DirectRule[] {
       confidence: 'high',
       category: 'navigation',
       description: 'setViewport → setViewportSize',
+    },
+
+    // ── Navigation with waitUntil (must come before generic goto) ──
+    {
+      regex:
+        /(?:await\s+)?page\.goto\s*\(\s*(.+?)\s*,\s*\{\s*waitUntil:\s*['"]networkidle[02]['"]\s*\}\s*\)/,
+      replacement: "await page.goto($1, { waitUntil: 'networkidle' })",
+      confidence: 'high',
+      category: 'navigation',
+      description: 'page.goto with networkidle0/2 → networkidle',
+    },
+    {
+      regex:
+        /(?:await\s+)?page\.goto\s*\(\s*(.+?)\s*,\s*\{\s*waitUntil:\s*['"]domcontentloaded['"]\s*\}\s*\)/,
+      replacement: "await page.goto($1, { waitUntil: 'domcontentloaded' })",
+      confidence: 'high',
+      category: 'navigation',
+      description: 'page.goto with domcontentloaded (preserved)',
     },
 
     // ── Navigation ──
@@ -2919,6 +4148,21 @@ function getPuppeteerDirectRules(): DirectRule[] {
 
     // ── Wait ──
     {
+      regex:
+        /(?:await\s+)?page\.waitForSelector\s*\(\s*(.+?)\s*,\s*\{\s*(?:visible:\s*true\s*,\s*)?timeout:\s*(\d+)\s*\}\s*\)/,
+      replacement: "await page.locator($1).waitFor({ state: 'visible', timeout: $2 })",
+      confidence: 'high',
+      category: 'wait',
+      description: 'waitForSelector(visible, timeout) → locator.waitFor',
+    },
+    {
+      regex: /(?:await\s+)?page\.waitForSelector\s*\(\s*(.+?)\s*,\s*\{\s*visible:\s*true\s*\}\s*\)/,
+      replacement: "await page.locator($1).waitFor({ state: 'visible' })",
+      confidence: 'high',
+      category: 'wait',
+      description: 'waitForSelector(visible) → locator.waitFor(visible)',
+    },
+    {
       regex: /(?:await\s+)?page\.waitForSelector\s*\(\s*(.+?)\s*\)/,
       replacement: 'await page.locator($1).waitFor()',
       confidence: 'high',
@@ -2995,6 +4239,75 @@ function getPuppeteerDirectRules(): DirectRule[] {
       confidence: 'high',
       category: 'navigation',
       description: 'Skip page assignment from browser',
+    },
+
+    // ── IIFE wrapper removal ──
+    {
+      regex: /^\s*\(\s*async\s*\(\)\s*=>\s*\{/,
+      replacement: '__SKIP__',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'Skip IIFE async wrapper opening',
+    },
+    {
+      regex: /^\s*\}\s*\)\s*\(\s*\)\s*;?\s*$/,
+      replacement: '__SKIP__',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'Skip IIFE closing',
+    },
+
+    // ── Frame / generic element interactions ──
+    {
+      regex: /(?:await\s+)?(\w+)\.waitForSelector\s*\(\s*(.+?)\s*(?:,\s*\{.*?\})?\s*\)/,
+      replacement: 'await $1.locator($2).waitFor()',
+      confidence: 'high',
+      category: 'wait',
+      description: 'frame.waitForSelector → frame.locator.waitFor',
+    },
+    {
+      regex: /(?:await\s+)?(\w+)\.\$eval\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)/,
+      replacement: 'await $1.locator($2).evaluate($3)',
+      confidence: 'high',
+      category: 'selector',
+      description: 'frame.$eval → frame.locator.evaluate',
+    },
+    {
+      regex: /(?:await\s+)?(\w+)\.fill\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)/,
+      replacement: 'await $1.locator($2).fill($3)',
+      confidence: 'high',
+      category: 'action',
+      description: 'frame.fill → frame.locator.fill',
+    },
+    {
+      regex: /(?:await\s+)?(\w+)\.click\s*\(\s*['"]([^'"]+)['"]\s*\)/,
+      replacement: "await $1.locator('$2').click()",
+      confidence: 'high',
+      category: 'action',
+      description: 'frame.click(selector) → frame.locator.click',
+    },
+
+    // ── Cookies ──
+    {
+      regex: /(?:await\s+)?page\.cookies\s*\(\)/,
+      replacement: 'await context.cookies()',
+      confidence: 'high',
+      category: 'action',
+      description: 'page.cookies → context.cookies',
+    },
+    {
+      regex: /(?:await\s+)?page\.setCookie\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await context.addCookies([$1])',
+      confidence: 'high',
+      category: 'action',
+      description: 'page.setCookie → context.addCookies',
+    },
+    {
+      regex: /(?:await\s+)?page\.deleteCookie\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await context.clearCookies()',
+      confidence: 'high',
+      category: 'action',
+      description: 'page.deleteCookie → context.clearCookies',
     },
   ];
 }
@@ -4367,6 +5680,13 @@ export class Transformer {
       /\.findElements\b/,
       /\.FindElement\b/,
       /\.FindElements\b/,
+      /\bself\.\w+/,
+      /\bfind_element\b/,
+      /\bfind_elements\b/,
+      /\bsend_keys\b/,
+      /\bActionChains\b/,
+      /\bWebDriverWait\b.*EC\./,
+      /\bSelect\s*\(/,
     ];
     return patterns.some((p) => p.test(line));
   }
