@@ -237,8 +237,43 @@ function getDirectRulesForFramework(
 function getSeleniumDirectRules(): DirectRule[] {
   return [
     // ── Assertions (MUST come first — they wrap other patterns like driver.getTitle) ──
-    // Compound assertions: assertTrue(driver.findElement(By.xxx("...")).isDisplayed())
+    // Compound assertions: assertTrue/Assertions.assertTrue(driver.findElement(...).isDisplayed())
     // These MUST come before the generic assertion rules to resolve nested findElement calls
+    // Also handle getDriver() and AppiumBy variants, and optional Assertions. prefix and message arg
+    {
+      regex:
+        /(?:Assertions\.)?assertTrue\s*\(\s*(?:driver|getDriver\(\))\s*\.findElement\s*\(\s*AppiumBy\.accessibilityId\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\s*\.isDisplayed\s*\(\)\s*(?:,\s*"[^"]*"\s*)?\)/,
+      replacement: "await expect(page.getByLabel('$1')).toBeVisible()",
+      confidence: 'high',
+      category: 'assertion',
+      description:
+        'assertTrue(findElement(AppiumBy.accessibilityId).isDisplayed) → expect.toBeVisible',
+    },
+    {
+      regex:
+        /(?:Assertions\.)?assertTrue\s*\(\s*(?:driver|getDriver\(\))\s*\.findElement\s*\(\s*AppiumBy\.id\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\s*\.isDisplayed\s*\(\)\s*(?:,\s*"[^"]*"\s*)?\)/,
+      replacement: "await expect(page.locator('#$1')).toBeVisible()",
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assertTrue(findElement(AppiumBy.id).isDisplayed) → expect.toBeVisible',
+    },
+    {
+      regex:
+        /(?:Assertions\.)?assertTrue\s*\(\s*(?:driver|getDriver\(\))\s*\.findElement\s*\(\s*By\.id\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\s*\.isDisplayed\s*\(\)\s*(?:,\s*"[^"]*"\s*)?\)/,
+      replacement: "await expect(page.locator('#$1')).toBeVisible()",
+      confidence: 'high',
+      category: 'assertion',
+      description:
+        'assertTrue(findElement(By.id).isDisplayed) → expect.toBeVisible (with getDriver)',
+    },
+    {
+      regex:
+        /(?:Assert\.)?assertEquals\s*\(\s*(?:driver|getDriver\(\))\s*\.findElements\s*\(\s*By\.id\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\s*\.size\s*\(\s*\)\s*,\s*0\s*\)/,
+      replacement: "await expect(page.locator('#$1')).toHaveCount(0)",
+      confidence: 'high',
+      category: 'assertion',
+      description: 'assertEquals(findElements.size(), 0) → expect.toHaveCount(0)',
+    },
     {
       regex:
         /assertTrue\s*\(\s*driver\.findElement\s*\(\s*By\.id\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.isDisplayed\s*\(\)\s*\)/,
@@ -249,7 +284,7 @@ function getSeleniumDirectRules(): DirectRule[] {
     },
     {
       regex:
-        /assertTrue\s*\(\s*driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.isDisplayed\s*\(\)\s*\)/,
+        /assertTrue\s*\(\s*driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*"([^"]+)"\s*\)\s*\)\.isDisplayed\s*\(\)\s*\)/,
       replacement: "await expect(page.locator('$1')).toBeVisible()",
       confidence: 'high',
       category: 'assertion',
@@ -281,7 +316,7 @@ function getSeleniumDirectRules(): DirectRule[] {
     },
     {
       regex:
-        /assertFalse\s*\(\s*driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.isDisplayed\s*\(\)\s*\)/,
+        /assertFalse\s*\(\s*driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*"([^"]+)"\s*\)\s*\)\.isDisplayed\s*\(\)\s*\)/,
       replacement: "await expect(page.locator('$1')).toBeHidden()",
       confidence: 'high',
       category: 'assertion',
@@ -298,7 +333,7 @@ function getSeleniumDirectRules(): DirectRule[] {
     },
     {
       regex:
-        /assertTrue\s*\(\s*driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.getText\s*\(\)\.contains\s*\(\s*"([^"]+)"\s*\)\s*\)/,
+        /assertTrue\s*\(\s*driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*"([^"]+)"\s*\)\s*\)\.getText\s*\(\)\.contains\s*\(\s*"([^"]+)"\s*\)\s*\)/,
       replacement: 'await expect(page.locator(\'$1\')).toContainText("$2")',
       confidence: 'high',
       category: 'assertion',
@@ -517,7 +552,7 @@ function getSeleniumDirectRules(): DirectRule[] {
     },
     {
       regex:
-        /driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.sendKeys\s*\(\s*(.+?)\s*\)/,
+        /driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*"([^"]+)"\s*\)\s*\)\.sendKeys\s*\(\s*(.+?)\s*\)/,
       replacement: "await page.locator('$1').fill($2)",
       confidence: 'high',
       category: 'action',
@@ -525,7 +560,7 @@ function getSeleniumDirectRules(): DirectRule[] {
     },
     {
       regex:
-        /driver\.findElement\s*\(\s*By\.css\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.sendKeys\s*\(\s*(.+?)\s*\)/,
+        /driver\.findElement\s*\(\s*By\.css\s*\(\s*"([^"]+)"\s*\)\s*\)\.sendKeys\s*\(\s*(.+?)\s*\)/,
       replacement: "await page.locator('$1').fill($2)",
       confidence: 'high',
       category: 'action',
@@ -564,15 +599,14 @@ function getSeleniumDirectRules(): DirectRule[] {
       description: 'findElement(By.id).click → locator.click',
     },
     {
-      regex:
-        /driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.click\s*\(\)/,
+      regex: /driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*"([^"]+)"\s*\)\s*\)\.click\s*\(\)/,
       replacement: "await page.locator('$1').click()",
       confidence: 'high',
       category: 'action',
       description: 'findElement(By.css).click → locator.click',
     },
     {
-      regex: /driver\.findElement\s*\(\s*By\.css\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.click\s*\(\)/,
+      regex: /driver\.findElement\s*\(\s*By\.css\s*\(\s*"([^"]+)"\s*\)\s*\)\.click\s*\(\)/,
       replacement: "await page.locator('$1').click()",
       confidence: 'high',
       category: 'action',
@@ -618,8 +652,7 @@ function getSeleniumDirectRules(): DirectRule[] {
       description: 'findElement(By.id).clear → locator.clear',
     },
     {
-      regex:
-        /driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.clear\s*\(\)/,
+      regex: /driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*"([^"]+)"\s*\)\s*\)\.clear\s*\(\)/,
       replacement: "await page.locator('$1').clear()",
       confidence: 'high',
       category: 'action',
@@ -673,7 +706,7 @@ function getSeleniumDirectRules(): DirectRule[] {
       description: 'findElement(By.xpath).isDisplayed → locator.isVisible',
     },
     {
-      regex: /driver\.findElement\s*\(\s*By\.css\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.getText\s*\(\)/,
+      regex: /driver\.findElement\s*\(\s*By\.css\s*\(\s*"([^"]+)"\s*\)\s*\)\.getText\s*\(\)/,
       replacement: "await page.locator('$1').textContent()",
       confidence: 'high',
       category: 'action',
@@ -681,7 +714,7 @@ function getSeleniumDirectRules(): DirectRule[] {
     },
     {
       regex:
-        /driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.getText\s*\(\)/,
+        /driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*"([^"]+)"\s*\)\s*\)\.getText\s*\(\)/,
       replacement: "await page.locator('$1').textContent()",
       confidence: 'high',
       category: 'action',
@@ -689,7 +722,7 @@ function getSeleniumDirectRules(): DirectRule[] {
     },
     {
       regex:
-        /driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\.isDisplayed\s*\(\)/,
+        /driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*"([^"]+)"\s*\)\s*\)\.isDisplayed\s*\(\)/,
       replacement: "await page.locator('$1').isVisible()",
       confidence: 'high',
       category: 'action',
@@ -823,7 +856,7 @@ function getSeleniumDirectRules(): DirectRule[] {
     // ── findElements (plural) ──
     {
       regex:
-        /(?:List<WebElement>\s+)?(\w+)\s*=\s*driver\.findElements\s*\(\s*By\.cssSelector\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)/,
+        /(?:List<WebElement>\s+)?(\w+)\s*=\s*driver\.findElements\s*\(\s*By\.cssSelector\s*\(\s*"([^"]+)"\s*\)\s*\)/,
       replacement: "const $1 = page.locator('$2')",
       confidence: 'high',
       category: 'selector',
@@ -863,7 +896,7 @@ function getSeleniumDirectRules(): DirectRule[] {
     },
     {
       regex:
-        /\w+\.until\s*\(\s*ExpectedConditions\.presenceOfAllElementsLocatedBy\s*\(\s*By\.cssSelector\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\s*\)/,
+        /\w+\.until\s*\(\s*ExpectedConditions\.presenceOfAllElementsLocatedBy\s*\(\s*By\.cssSelector\s*\(\s*"([^"]+)"\s*\)\s*\)/,
       replacement: "await page.locator('$1').first().waitFor()",
       confidence: 'high',
       category: 'wait',
@@ -881,7 +914,7 @@ function getSeleniumDirectRules(): DirectRule[] {
     },
     {
       regex:
-        /(?:(?:WebElement|const|let|var)\s+)?(\w+)\s*=\s*(?:await\s+)?driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)/,
+        /(?:(?:WebElement|const|let|var)\s+)?(\w+)\s*=\s*(?:await\s+)?driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*"([^"]+)"\s*\)\s*\)/,
       replacement: "const $1 = page.locator('$2')",
       confidence: 'high',
       category: 'selector',
@@ -889,7 +922,7 @@ function getSeleniumDirectRules(): DirectRule[] {
     },
     {
       regex:
-        /(?:(?:WebElement|const|let|var)\s+)?(\w+)\s*=\s*(?:await\s+)?driver\.findElement\s*\(\s*By\.css\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)/,
+        /(?:(?:WebElement|const|let|var)\s+)?(\w+)\s*=\s*(?:await\s+)?driver\.findElement\s*\(\s*By\.css\s*\(\s*"([^"]+)"\s*\)\s*\)/,
       replacement: "const $1 = page.locator('$2')",
       confidence: 'high',
       category: 'selector',
@@ -929,7 +962,7 @@ function getSeleniumDirectRules(): DirectRule[] {
       description: 'By.id assignment → locator',
     },
     {
-      regex: /(?:By\s+)?(\w+)\s*=\s*By\.cssSelector\s*\(\s*['"]([^'"]+)['"]\s*\)/,
+      regex: /(?:By\s+)?(\w+)\s*=\s*By\.cssSelector\s*\(\s*"([^"]+)"\s*\)/,
       replacement: "const $1 = page.locator('$2')",
       confidence: 'high',
       category: 'selector',
@@ -988,14 +1021,14 @@ function getSeleniumDirectRules(): DirectRule[] {
       description: 'findElement(By.id) → locator (generic)',
     },
     {
-      regex: /driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)/,
+      regex: /driver\.findElement\s*\(\s*By\.cssSelector\s*\(\s*"([^"]+)"\s*\)\s*\)/,
       replacement: "page.locator('$1')",
       confidence: 'high',
       category: 'selector',
       description: 'findElement(By.cssSelector) → locator (generic)',
     },
     {
-      regex: /driver\.findElement\s*\(\s*By\.css\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)/,
+      regex: /driver\.findElement\s*\(\s*By\.css\s*\(\s*"([^"]+)"\s*\)\s*\)/,
       replacement: "page.locator('$1')",
       confidence: 'high',
       category: 'selector',
@@ -1035,6 +1068,121 @@ function getSeleniumDirectRules(): DirectRule[] {
       confidence: 'high',
       category: 'selector',
       description: 'findElement(By.linkText) → getByRole (generic)',
+    },
+
+    // ── AppiumBy selectors ──
+    {
+      regex:
+        /(?:driver|getDriver\(\))\s*\.findElement\s*\(\s*AppiumBy\.accessibilityId\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)/,
+      replacement: "page.getByLabel('$1')",
+      confidence: 'medium',
+      category: 'selector',
+      description: 'AppiumBy.accessibilityId → getByLabel',
+    },
+    {
+      regex:
+        /(?:driver|getDriver\(\))\.findElement\s*\(\s*AppiumBy\.iOSClassChain\s*\(\s*(.+?)\s*\)\s*\)/,
+      replacement:
+        '// [automigrate] iOSClassChain($1) → use platform-specific locator or page.locator()',
+      confidence: 'low',
+      category: 'selector',
+      description: 'AppiumBy.iOSClassChain → manual conversion',
+      requiresManualReview: true,
+    },
+    {
+      regex:
+        /(?:driver|getDriver\(\))\.findElement\s*\(\s*AppiumBy\.androidUIAutomator\s*\(\s*(.+?)\s*\)\s*\)/,
+      replacement:
+        '// [automigrate] androidUIAutomator($1) → use platform-specific locator or page.locator()',
+      confidence: 'low',
+      category: 'selector',
+      description: 'AppiumBy.androidUIAutomator → manual conversion',
+      requiresManualReview: true,
+    },
+    {
+      regex: /(?:driver|getDriver\(\))\.findElement\s*\(\s*AppiumBy\.image\s*\(\s*(.+?)\s*\)\s*\)/,
+      replacement:
+        '// [automigrate] findByImage($1) → use visual comparison or page.locator() with testid',
+      confidence: 'low',
+      category: 'selector',
+      description: 'AppiumBy.image → manual conversion',
+      requiresManualReview: true,
+    },
+    {
+      regex: /AppiumBy\.accessibilityId\s*\(\s*['"]([^'"]+)['"]\s*\)/,
+      replacement: "page.getByLabel('$1')",
+      confidence: 'medium',
+      category: 'selector',
+      description: 'AppiumBy.accessibilityId → getByLabel (standalone)',
+    },
+
+    // ── getDriver() variant (treat same as driver.) ──
+    {
+      regex: /getDriver\(\)\.findElement\s*\(\s*By\.id\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)/,
+      replacement: "page.locator('#$1')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'getDriver().findElement(By.id) → locator',
+    },
+    {
+      regex: /getDriver\(\)\.findElement\s*\(\s*By\.cssSelector\s*\(\s*"([^"]+)"\s*\)\s*\)/,
+      replacement: "page.locator('$1')",
+      confidence: 'high',
+      category: 'selector',
+      description: 'getDriver().findElement(By.css) → locator',
+    },
+    {
+      regex: /getDriver\(\)\.findElement\s*\(\s*By\.xpath\s*\(\s*"([^"]+)"\s*\)\s*\)/,
+      replacement: 'page.locator(`xpath=$1`)',
+      confidence: 'high',
+      category: 'selector',
+      description: 'getDriver().findElement(By.xpath) → locator',
+    },
+
+    // ── AppiumBy.id ──
+    {
+      regex:
+        /(?:driver|getDriver\(\))\s*\.findElement\s*\(\s*AppiumBy\.id\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)/,
+      replacement: "page.locator('#$1')",
+      confidence: 'medium',
+      category: 'selector',
+      description: 'findElement(AppiumBy.id) → locator',
+    },
+
+    // ── driver.findElement with variable locator (catch-all, handles extra whitespace) ──
+    {
+      regex:
+        /(?:\(\s*WebElement\s*\)\s*)?(?:driver|getDriver\(\))\s*\.findElement\s*\(\s*(\w+)\s*\)/,
+      replacement: 'page.locator($1)',
+      confidence: 'medium',
+      category: 'selector',
+      description: 'findElement(variable) → locator(variable)',
+    },
+    {
+      regex:
+        /(?:\(\s*WebElement\s*\)\s*)?(?:driver|getDriver\(\))\s*\.findElements\s*\(\s*(\w+)\s*\)/,
+      replacement: 'page.locator($1)',
+      confidence: 'medium',
+      category: 'selector',
+      description: 'findElements(variable) → locator(variable)',
+    },
+
+    // ── Dynamic xpath with string concatenation ──
+    {
+      regex: /driver\.findElement\s*\(\s*By\.xpath\s*\(\s*"([^"]*)"(\s*\+\s*.+?)\s*\)\s*\)/,
+      replacement: (match: RegExpMatchArray, _indent: string) => {
+        // Convert Java string concatenation to JS template literal
+        const staticPart = match[1];
+        const dynamicPart = match[2];
+        // Replace " + varName + " with ${varName}
+        const converted = dynamicPart
+          .replace(/\s*\+\s*"([^"]*)"/g, '$1')
+          .replace(/\s*\+\s*(\w+)\s*/g, '${$1}');
+        return `page.locator(\`xpath=${staticPart}${converted}\`)`;
+      },
+      confidence: 'medium',
+      category: 'selector',
+      description: 'findElement(By.xpath(concat)) → locator with template',
     },
 
     // ── Variable-based element actions (after assignment) ──
@@ -1152,6 +1300,51 @@ function getSeleniumDirectRules(): DirectRule[] {
       confidence: 'medium',
       category: 'wait',
       description: 'WebDriverWait(invisibilityOfElementLocated) → waitFor(hidden)',
+    },
+
+    // ── Wait with AppiumBy ──
+    {
+      regex:
+        /\w+\.until\s*\(\s*ExpectedConditions\.visibilityOfElementLocated\s*\(\s*AppiumBy\.accessibilityId\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)\s*\)/,
+      replacement: "await page.getByLabel('$1').waitFor({ state: 'visible' })",
+      confidence: 'medium',
+      category: 'wait',
+      description: 'wait.until(visibility AppiumBy.accessibilityId) → getByLabel.waitFor',
+    },
+    {
+      regex:
+        /\w+\.until\s*\(\s*ExpectedConditions\.visibilityOfElementLocated\s*\(\s*AppiumBy\.accessibilityId\s*\(\s*(\w+)\s*\)\s*\)\s*\)/,
+      replacement: "await page.getByLabel($1).waitFor({ state: 'visible' })",
+      confidence: 'medium',
+      category: 'wait',
+      description: 'wait.until(visibility AppiumBy.accessibilityId variable) → getByLabel.waitFor',
+    },
+
+    // ── Variable-based By.xpath ──
+    {
+      regex: /driver\.findElements?\s*\(\s*By\.xpath\s*\(\s*(\w+)\s*\)\s*\)/,
+      replacement: 'page.locator(`xpath=${$1}`)',
+      confidence: 'medium',
+      category: 'selector',
+      description: 'findElement(By.xpath(variable)) → locator',
+    },
+
+    // ── By type variable declaration (Appium) ──
+    {
+      regex: /^\s*By\s+(\w+)\s*=\s*AppiumBy\.accessibilityId\s*\(\s*['"]([^'"]+)['"]\s*\)\s*;?\s*$/,
+      replacement: "const $1 = page.getByLabel('$2');",
+      confidence: 'medium',
+      category: 'selector',
+      description: 'By = AppiumBy.accessibilityId → const = getByLabel',
+    },
+    {
+      regex: /^\s*By\s+(\w+)\s*=\s*AppiumBy\.iOSClassChain\s*\(\s*(.+?)\s*\)\s*;?\s*$/,
+      replacement:
+        '// [automigrate] iOSClassChain: const $1 = page.locator($2); // Needs platform-specific locator',
+      confidence: 'low',
+      category: 'selector',
+      description: 'By = AppiumBy.iOSClassChain → manual',
+      requiresManualReview: true,
     },
 
     // ── Wait (variable-based) ──
@@ -1409,6 +1602,197 @@ function getSeleniumDirectRules(): DirectRule[] {
       confidence: 'medium',
       category: 'action',
       description: 'alert.sendKeys → dialog.accept with text',
+    },
+
+    // ── Variable-based Actions (when actions = new Actions(driver) is separate) ──
+    {
+      regex: /^\s*Actions\s+\w+\s*=\s*new\s+Actions\s*\(\s*driver\s*\)\s*;?\s*$/,
+      replacement: '__SKIP__',
+      confidence: 'high',
+      category: 'action',
+      description: 'Skip Actions variable declaration',
+    },
+    {
+      regex:
+        /(\w+)\.moveToElement\s*\(\s*(\w+)\s*\)\s*\.click\s*\(\s*\)\s*\.(?:build\(\)\s*\.)?perform\s*\(\s*\)/,
+      replacement: 'await $2.click()',
+      confidence: 'high',
+      category: 'action',
+      description: 'actions.moveToElement.click.perform → locator.click',
+    },
+    {
+      regex: /(\w+)\.moveToElement\s*\(\s*(\w+)\s*\)\s*\.(?:build\(\)\s*\.)?perform\s*\(\s*\)/,
+      replacement: 'await $2.hover()',
+      confidence: 'high',
+      category: 'action',
+      description: 'actions.moveToElement.perform → locator.hover',
+    },
+    {
+      regex: /(\w+)\.doubleClick\s*\(\s*(\w+)\s*\)\s*\.(?:build\(\)\s*\.)?perform\s*\(\s*\)/,
+      replacement: 'await $2.dblclick()',
+      confidence: 'high',
+      category: 'action',
+      description: 'actions.doubleClick.perform → locator.dblclick',
+    },
+    {
+      regex: /(\w+)\.contextClick\s*\(\s*(\w+)\s*\)\s*\.(?:build\(\)\s*\.)?perform\s*\(\s*\)/,
+      replacement: "await $2.click({ button: 'right' })",
+      confidence: 'high',
+      category: 'action',
+      description: 'actions.contextClick.perform → locator.click({right})',
+    },
+    {
+      regex:
+        /(\w+)\.dragAndDrop\s*\(\s*(\w+)\s*,\s*(\w+)\s*\)\s*\.(?:build\(\)\s*\.)?perform\s*\(\s*\)/,
+      replacement: 'await $2.dragTo($3)',
+      confidence: 'high',
+      category: 'action',
+      description: 'actions.dragAndDrop.perform → locator.dragTo',
+    },
+    {
+      regex:
+        /(\w+)\.clickAndHold\s*\(\s*(\w+)\s*\)\s*\.moveToElement\s*\(\s*(\w+)\s*\)\s*\.release\s*\(\s*\)\s*\.(?:build\(\)\s*\.)?perform\s*\(\s*\)/,
+      replacement: 'await $2.dragTo($3)',
+      confidence: 'high',
+      category: 'action',
+      description: 'actions.clickAndHold.moveToElement.release.perform → dragTo',
+    },
+
+    // ── Cookie operations ──
+    {
+      regex:
+        /driver\.manage\(\)\.addCookie\s*\(\s*new\s+Cookie\s*\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)\s*\)/,
+      replacement: "await context.addCookies([{ name: '$1', value: '$2', url: page.url() }])",
+      confidence: 'high',
+      category: 'action',
+      description: 'addCookie → context.addCookies',
+    },
+    {
+      regex: /driver\.manage\(\)\.getCookieNamed\s*\(\s*"([^"]+)"\s*\)/,
+      replacement: "(await context.cookies()).find(c => c.name === '$1')",
+      confidence: 'high',
+      category: 'action',
+      description: 'getCookieNamed → context.cookies()',
+    },
+    {
+      regex: /driver\.manage\(\)\.getCookies\s*\(\s*\)/,
+      replacement: 'await context.cookies()',
+      confidence: 'high',
+      category: 'action',
+      description: 'getCookies → context.cookies()',
+    },
+    {
+      regex: /driver\.manage\(\)\.deleteAllCookies\s*\(\s*\)/,
+      replacement: 'await context.clearCookies()',
+      confidence: 'high',
+      category: 'action',
+      description: 'deleteAllCookies → context.clearCookies',
+    },
+    {
+      regex: /driver\.manage\(\)\.deleteCookieNamed\s*\(\s*"([^"]+)"\s*\)/,
+      replacement: "await context.clearCookies({ name: '$1' })",
+      confidence: 'high',
+      category: 'action',
+      description: 'deleteCookieNamed → context.clearCookies',
+    },
+
+    // ── Frame switching improvements ──
+    {
+      regex: /driver\.switchTo\(\)\.frame\s*\(\s*(\w+)\s*\)/,
+      replacement: 'const frame = await $1.contentFrame()',
+      confidence: 'medium',
+      category: 'navigation',
+      description: 'switchTo.frame(element) → contentFrame()',
+      requiresManualReview: true,
+    },
+    {
+      regex: /driver\.switchTo\(\)\.frame\s*\(\s*(\d+)\s*\)/,
+      replacement: "const frame = page.frameLocator('iframe').nth($1)",
+      confidence: 'medium',
+      category: 'navigation',
+      description: 'switchTo.frame(index) → frameLocator.nth()',
+      requiresManualReview: true,
+    },
+    {
+      regex: /driver\.switchTo\(\)\.parentFrame\s*\(\s*\)/,
+      replacement: '// [automigrate] parentFrame — use the parent page reference instead of frame',
+      confidence: 'medium',
+      category: 'navigation',
+      description: 'switchTo.parentFrame → use page reference',
+      requiresManualReview: true,
+    },
+
+    // ── Window management ──
+    {
+      regex: /driver\.manage\(\)\.window\(\)\.maximize\s*\(\s*\)/,
+      replacement:
+        '// [automigrate] Playwright uses viewport size — set in config: use: { viewport: { width: 1920, height: 1080 } }',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'window.maximize → viewport config',
+    },
+    {
+      regex:
+        /driver\.manage\(\)\.window\(\)\.setSize\s*\(\s*new\s+Dimension\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)\s*\)/,
+      replacement: 'await page.setViewportSize({ width: $1, height: $2 })',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'window.setSize → setViewportSize',
+    },
+
+    // ── Screenshot ──
+    {
+      regex: /\(\(TakesScreenshot\)\s*driver\)\.getScreenshotAs\s*\(.+?\)/,
+      replacement: "await page.screenshot({ path: 'screenshot.png' })",
+      confidence: 'high',
+      category: 'action',
+      description: 'getScreenshotAs → page.screenshot',
+    },
+
+    // ── Java control flow cleanup ──
+    {
+      regex: /^\s*for\s*\(\s*(?:WebElement|var)\s+(\w+)\s*:\s*(\w+)\s*\)\s*\{?\s*$/,
+      replacement: 'for (const $1 of await $2.all()) {',
+      confidence: 'medium',
+      category: 'action',
+      description: 'for-each WebElement → for..of locator.all()',
+    },
+    {
+      regex: /^\s*(?:WebElement|var)\s+(\w+)\s*=\s*(.+?);\s*$/,
+      replacement: 'const $1 = $2;',
+      confidence: 'medium',
+      category: 'selector',
+      description: 'WebElement var → const',
+    },
+    {
+      regex: /^\s*(?:String|int|boolean|long|double|float)\s+(\w+)\s*=\s*(.+?);\s*$/,
+      replacement: 'const $1 = $2;',
+      confidence: 'medium',
+      category: 'selector',
+      description: 'Java type declaration → const',
+    },
+    {
+      regex: /^\s*List<WebElement>\s+(\w+)\s*=\s*(.+?);\s*$/,
+      replacement: 'const $1 = $2;',
+      confidence: 'medium',
+      category: 'selector',
+      description: 'List<WebElement> → const',
+    },
+    {
+      regex: /^\s*FluentWait.*$/,
+      replacement:
+        '// [automigrate] FluentWait not needed — Playwright auto-retries with configurable timeout',
+      confidence: 'high',
+      category: 'wait',
+      description: 'FluentWait → auto-retry comment',
+    },
+    {
+      regex: /^\s*Wait<WebDriver>\s+\w+\s*=\s*new\s+FluentWait.*/,
+      replacement:
+        '// [automigrate] FluentWait → configure timeout in playwright.config.ts or use expect().toPass()',
+      confidence: 'high',
+      category: 'wait',
+      description: 'FluentWait declaration → config comment',
     },
 
     // ── Skip Java boilerplate ──
@@ -4632,7 +5016,130 @@ function getWebdriverioDirectRules(): DirectRule[] {
       description: 'var = $() → page.locator',
     },
 
-    // ── Bare $() / $$() ──
+    // ── Compound $().action() chains (MUST come before bare $() rules) ──
+    {
+      regex: /(?:await\s+)?\$\s*\(\s*(.+?)\s*\)\.setValue\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.locator($1).fill($2)',
+      confidence: 'high',
+      category: 'action',
+      description: '$().setValue → locator.fill',
+    },
+    {
+      regex: /(?:await\s+)?\$\s*\(\s*(.+?)\s*\)\.addValue\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.locator($1).pressSequentially($2)',
+      confidence: 'high',
+      category: 'action',
+      description: '$().addValue → locator.pressSequentially',
+    },
+    {
+      regex: /(?:await\s+)?\$\s*\(\s*(.+?)\s*\)\.click\s*\(\s*\)/,
+      replacement: 'await page.locator($1).click()',
+      confidence: 'high',
+      category: 'action',
+      description: '$().click → locator.click',
+    },
+    {
+      regex: /(?:await\s+)?\$\s*\(\s*(.+?)\s*\)\.doubleClick\s*\(\s*\)/,
+      replacement: 'await page.locator($1).dblclick()',
+      confidence: 'high',
+      category: 'action',
+      description: '$().doubleClick → locator.dblclick',
+    },
+    {
+      regex: /(?:await\s+)?\$\s*\(\s*(.+?)\s*\)\.clearValue\s*\(\s*\)/,
+      replacement: 'await page.locator($1).clear()',
+      confidence: 'high',
+      category: 'action',
+      description: '$().clearValue → locator.clear',
+    },
+    {
+      regex: /(?:await\s+)?\$\s*\(\s*(.+?)\s*\)\.getText\s*\(\s*\)/,
+      replacement: 'await page.locator($1).textContent()',
+      confidence: 'high',
+      category: 'action',
+      description: '$().getText → locator.textContent',
+    },
+    {
+      regex: /(?:await\s+)?\$\s*\(\s*(.+?)\s*\)\.getValue\s*\(\s*\)/,
+      replacement: 'await page.locator($1).inputValue()',
+      confidence: 'high',
+      category: 'action',
+      description: '$().getValue → locator.inputValue',
+    },
+    {
+      regex: /(?:await\s+)?\$\s*\(\s*(.+?)\s*\)\.isDisplayed\s*\(\s*\)/,
+      replacement: 'await page.locator($1).isVisible()',
+      confidence: 'high',
+      category: 'action',
+      description: '$().isDisplayed → locator.isVisible',
+    },
+    {
+      regex: /(?:await\s+)?\$\s*\(\s*(.+?)\s*\)\.isExisting\s*\(\s*\)/,
+      replacement: 'await page.locator($1).count().then(c => c > 0)',
+      confidence: 'medium',
+      category: 'action',
+      description: '$().isExisting → locator.count',
+    },
+    {
+      regex:
+        /(?:await\s+)?\$\s*\(\s*(.+?)\s*\)\.waitForDisplayed\s*\(\s*\{[^}]*reverse\s*:\s*true[^}]*\}\s*\)/,
+      replacement: "await page.locator($1).waitFor({ state: 'hidden' })",
+      confidence: 'high',
+      category: 'wait',
+      description: '$().waitForDisplayed({reverse}) → waitFor(hidden)',
+    },
+    {
+      regex: /(?:await\s+)?\$\s*\(\s*(.+?)\s*\)\.waitForDisplayed\s*\(\s*(?:\{[^}]*\}\s*)?\)/,
+      replacement: "await page.locator($1).waitFor({ state: 'visible' })",
+      confidence: 'high',
+      category: 'wait',
+      description: '$().waitForDisplayed → waitFor(visible)',
+    },
+    {
+      regex: /(?:await\s+)?\$\s*\(\s*(.+?)\s*\)\.waitForExist\s*\(\s*\)/,
+      replacement: "await page.locator($1).waitFor({ state: 'attached' })",
+      confidence: 'high',
+      category: 'wait',
+      description: '$().waitForExist → waitFor(attached)',
+    },
+    {
+      regex: /(?:await\s+)?\$\s*\(\s*(.+?)\s*\)\.moveTo\s*\(\s*\)/,
+      replacement: 'await page.locator($1).hover()',
+      confidence: 'high',
+      category: 'action',
+      description: '$().moveTo → locator.hover',
+    },
+    {
+      regex: /(?:await\s+)?\$\s*\(\s*(.+?)\s*\)\.scrollIntoView\s*\(\s*\)/,
+      replacement: 'await page.locator($1).scrollIntoViewIfNeeded()',
+      confidence: 'high',
+      category: 'action',
+      description: '$().scrollIntoView → locator.scrollIntoViewIfNeeded',
+    },
+    {
+      regex: /(?:await\s+)?\$\s*\(\s*(.+?)\s*\)\.dragAndDrop\s*\(\s*(\w+)\s*\)/,
+      replacement: 'await page.locator($1).dragTo($2)',
+      confidence: 'high',
+      category: 'action',
+      description: '$().dragAndDrop → locator.dragTo',
+    },
+    {
+      regex: /(?:await\s+)?\$\s*\(\s*(.+?)\s*\)\.selectByVisibleText\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await page.locator($1).selectOption({ label: $2 })',
+      confidence: 'high',
+      category: 'action',
+      description: '$().selectByVisibleText → selectOption',
+    },
+    {
+      regex:
+        /(?:await\s+)?\$\s*\(\s*(.+?)\s*\)\.selectByAttribute\s*\(\s*['"]value['"]\s*,\s*(.+?)\s*\)/,
+      replacement: 'await page.locator($1).selectOption($2)',
+      confidence: 'high',
+      category: 'action',
+      description: "$().selectByAttribute('value') → selectOption",
+    },
+
+    // ── Bare $() / $$() (catch-all — MUST come after compound $().action() rules) ──
     {
       regex: /(?:await\s+)?\$\$\s*\(\s*(.+?)\s*\)/,
       replacement: 'page.locator($1)',
@@ -4648,7 +5155,7 @@ function getWebdriverioDirectRules(): DirectRule[] {
       description: '$() → page.locator',
     },
 
-    // ── Element actions ──
+    // ── Element actions (for pre-assigned variables) ──
     {
       regex: /\.setValue\s*\(\s*(.+?)\s*\)/,
       replacement: '.fill($1)',
@@ -4853,8 +5360,8 @@ function getWebdriverioDirectRules(): DirectRule[] {
 
     // ── Cookies ──
     {
-      regex: /(?:await\s+)?browser\.setCookies\s*\(\s*(\{[^}]+\})\s*\)/,
-      replacement: 'await context.addCookies([$1])',
+      regex: /(?:await\s+)?browser\.setCookies\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await context.addCookies($1)',
       confidence: 'high',
       category: 'action',
       description: 'browser.setCookies → context.addCookies',
@@ -4922,55 +5429,167 @@ function getWebdriverioDirectRules(): DirectRule[] {
       description: 'browser.mock → page.route',
     },
 
-    // ── WDIO Assertions ──
+    // ── WDIO Assertions (await optional since WDIO may not use it) ──
     {
-      regex: /await\s+expect\s*\(\s*(\w+)\s*\)\.toBeDisplayed\s*\(\s*\)/,
+      regex: /(?:await\s+)?expect\s*\(\s*(\w+)\s*\)\.toBeDisplayed\s*\(\s*\)/,
       replacement: 'await expect($1).toBeVisible()',
       confidence: 'high',
       category: 'assertion',
       description: 'expect.toBeDisplayed → expect.toBeVisible',
     },
     {
-      regex: /await\s+expect\s*\(\s*(\w+)\s*\)\.not\.toBeDisplayed\s*\(\s*\)/,
+      regex: /(?:await\s+)?expect\s*\(\s*(\w+)\s*\)\.not\.toBeDisplayed\s*\(\s*\)/,
       replacement: 'await expect($1).toBeHidden()',
       confidence: 'high',
       category: 'assertion',
       description: 'expect.not.toBeDisplayed → expect.toBeHidden',
     },
     {
-      regex: /await\s+expect\s*\(\s*(\w+)\s*\)\.toHaveTextContaining\s*\(\s*(.+?)\s*\)/,
+      regex: /(?:await\s+)?expect\s*\(\s*(\w+)\s*\)\.toHaveTextContaining\s*\(\s*(.+?)\s*\)/,
       replacement: 'await expect($1).toContainText($2)',
       confidence: 'high',
       category: 'assertion',
       description: 'expect.toHaveTextContaining → expect.toContainText',
     },
     {
-      regex: /await\s+expect\s*\(\s*(\w+)\s*\)\.toExist\s*\(\s*\)/,
+      regex: /(?:await\s+)?expect\s*\(\s*(\w+)\s*\)\.toExist\s*\(\s*\)/,
       replacement: 'await expect($1).toBeAttached()',
       confidence: 'high',
       category: 'assertion',
       description: 'expect.toExist → expect.toBeAttached',
     },
     {
-      regex: /await\s+expect\s*\(\s*(\w+)\s*\)\.toBeClickable\s*\(\s*\)/,
+      regex: /(?:await\s+)?expect\s*\(\s*(\w+)\s*\)\.toBeClickable\s*\(\s*\)/,
       replacement: 'await expect($1).toBeEnabled()',
       confidence: 'medium',
       category: 'assertion',
       description: 'expect.toBeClickable → expect.toBeEnabled',
     },
     {
-      regex: /await\s+expect\s*\(\s*(\w+)\s*\)\.toHaveUrl\s*\(\s*(.+?)\s*\)/,
+      regex: /(?:await\s+)?expect\s*\(\s*(\w+)\s*\)\.toHaveUrl\s*\(\s*(.+?)\s*\)/,
       replacement: 'await expect(page).toHaveURL($2)',
       confidence: 'high',
       category: 'assertion',
       description: 'expect.toHaveUrl → expect(page).toHaveURL',
     },
     {
-      regex: /await\s+expect\s*\(\s*(\w+)\s*\)\.toHaveTitle\s*\(\s*(.+?)\s*\)/,
+      regex: /(?:await\s+)?expect\s*\(\s*(\w+)\s*\)\.toHaveTitle\s*\(\s*(.+?)\s*\)/,
       replacement: 'await expect(page).toHaveTitle($2)',
       confidence: 'high',
       category: 'assertion',
       description: 'expect.toHaveTitle → expect(page).toHaveTitle',
+    },
+    {
+      regex: /(?:await\s+)?expect\s*\(\s*browser\s*\)\.toHaveUrl\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await expect(page).toHaveURL($1)',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'expect(browser).toHaveUrl → expect(page).toHaveURL',
+    },
+    {
+      regex: /(?:await\s+)?expect\s*\(\s*browser\s*\)\.toHaveTitle\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await expect(page).toHaveTitle($1)',
+      confidence: 'high',
+      category: 'assertion',
+      description: 'expect(browser).toHaveTitle → expect(page).toHaveTitle',
+    },
+    {
+      regex: /(?:await\s+)?expect\s*\(\s*(\w+)\s*\)\.toBeElementsArrayOfSize\s*\(\s*(.+?)\s*\)/,
+      replacement: 'await expect($1).toHaveCount($2)',
+      confidence: 'medium',
+      category: 'assertion',
+      description: 'toBeElementsArrayOfSize → toHaveCount',
+    },
+
+    // ── WDIO Alert handling ──
+    {
+      regex: /(?:await\s+)?browser\.acceptAlert\s*\(\s*\)/,
+      replacement: "page.on('dialog', dialog => dialog.accept())",
+      confidence: 'high',
+      category: 'action',
+      description: 'browser.acceptAlert → dialog.accept',
+    },
+    {
+      regex: /(?:await\s+)?browser\.dismissAlert\s*\(\s*\)/,
+      replacement: "page.on('dialog', dialog => dialog.dismiss())",
+      confidence: 'high',
+      category: 'action',
+      description: 'browser.dismissAlert → dialog.dismiss',
+    },
+    {
+      regex: /(?:await\s+)?browser\.getAlertText\s*\(\s*\)/,
+      replacement: "// [automigrate] Use page.on('dialog', d => d.message()) to capture alert text",
+      confidence: 'medium',
+      category: 'action',
+      description: 'browser.getAlertText → dialog.message',
+    },
+    {
+      regex: /(?:await\s+)?browser\.sendAlertText\s*\(\s*(.+?)\s*\)/,
+      replacement: "page.on('dialog', dialog => dialog.accept($1))",
+      confidence: 'medium',
+      category: 'action',
+      description: 'browser.sendAlertText → dialog.accept(text)',
+    },
+
+    // ── WDIO Window/maximize ──
+    {
+      regex: /(?:await\s+)?browser\.maximizeWindow\s*\(\s*\)/,
+      replacement:
+        '// [automigrate] Playwright uses viewport size — set in config: use: { viewport: { width: 1920, height: 1080 } }',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'browser.maximizeWindow → viewport config',
+    },
+    {
+      regex: /(?:await\s+)?browser\.getWindowHandle\s*\(\s*\)/,
+      replacement: 'page',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'browser.getWindowHandle → page reference',
+    },
+    {
+      regex: /(?:await\s+)?browser\.getWindowHandles\s*\(\s*\)/,
+      replacement: 'context.pages()',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'browser.getWindowHandles → context.pages()',
+    },
+    {
+      regex: /(?:await\s+)?browser\.switchToWindow\s*\(\s*(.+?)\s*\)/,
+      replacement:
+        '// [automigrate] switchToWindow($1) → use context.pages() to find page by handle',
+      confidence: 'medium',
+      category: 'navigation',
+      description: 'browser.switchToWindow → context.pages()',
+    },
+    {
+      regex: /(?:await\s+)?browser\.newWindow\s*\(\s*(.+?)\s*\)/,
+      replacement: 'const newPage = await context.newPage(); await newPage.goto($1)',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'browser.newWindow → context.newPage + goto',
+    },
+    {
+      regex: /(?:await\s+)?browser\.uploadFile\s*\(\s*(.+?)\s*\)/,
+      replacement:
+        "// [automigrate] browser.uploadFile($1) → use page.locator('input[type=file]').setInputFiles($1)",
+      confidence: 'medium',
+      category: 'action',
+      description: 'browser.uploadFile → setInputFiles',
+    },
+    {
+      regex: /(?:await\s+)?browser\.deleteSession\s*\(\s*\)/,
+      replacement: '// [automigrate] Playwright handles browser cleanup — remove this line',
+      confidence: 'high',
+      category: 'navigation',
+      description: 'browser.deleteSession → cleanup',
+    },
+    {
+      regex: /(?:await\s+)?browser\.reloadSession\s*\(\s*\)/,
+      replacement: 'await page.reload()',
+      confidence: 'medium',
+      category: 'navigation',
+      description: 'browser.reloadSession → page.reload',
     },
   ];
 }

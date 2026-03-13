@@ -1,6 +1,6 @@
 {
   "name": "automigrate",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Universal test migration tool — converts Selenium, Cypress, Puppeteer, Appium, WebdriverIO, and Robot Framework test suites to Playwright",
   "type": "module",
   "main": "dist/index.cjs",

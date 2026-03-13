@@ -109,10 +109,10 @@ export class CodeGenerator {
         .filter((l) => l.transformed !== '')
         .map((l) => {
           let t = l.transformed;
-          // Convert Cypress/Mocha describe → test.describe
-          t = t.replace(/\bdescribe\s*\(/, 'test.describe(');
+          // Convert Cypress/Mocha describe → test.describe (skip if already test.describe)
+          t = t.replace(/(?<!\.)(?<!\w)describe\s*\(/, 'test.describe(');
           // Convert context → test.describe
-          t = t.replace(/\bcontext\s*\(/, 'test.describe(');
+          t = t.replace(/(?<!\.)(?<!\w)context\s*\(/, 'test.describe(');
           // Convert it('name', async function() { → test('name', async ({ page }) => {
           t = t.replace(
             /\bit\s*\(\s*(['"].*?['"])\s*,\s*(?:async\s+)?function\s*\(\)\s*\{/,
