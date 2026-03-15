@@ -1,10 +1,10 @@
 # automigrate
 
-**Migrate Selenium, Cypress, Puppeteer, and Appium test suites to Playwright.**
+**Migrate Selenium, Cypress, Puppeteer, WebdriverIO, Appium, and Robot Framework test suites to Playwright.**
 
 [![npm version](https://img.shields.io/npm/v/automigrate.svg)](https://www.npmjs.com/package/automigrate)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/user/automigrate/ci.yml?branch=main)](https://github.com/user/automigrate/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/vazidmansuri005/automigrate/ci.yml?branch=main)](https://github.com/vazidmansuri005/automigrate/actions)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org)
 
 ---
@@ -13,8 +13,8 @@ automigrate analyzes your existing test suites, builds a transformation plan wit
 
 ## Features
 
-- **Multi-framework** -- Selenium, Cypress, Puppeteer, and Appium source frameworks
-- **Multi-language** -- Java, JavaScript, TypeScript, and Python parsers (Tree-sitter + Babel AST)
+- **Multi-framework** -- Selenium, Cypress, Puppeteer, WebdriverIO, Appium, and Robot Framework
+- **Multi-language** -- Java, JavaScript, TypeScript, and Python parsers
 - **Safety-first** -- Dry-run by default; original files are never touched
 - **Confidence scoring** -- Every transformation is rated high/medium/low so you know what needs manual review
 - **Smart selectors** -- Converts legacy selectors to Playwright best practices (`getByRole`, `getByTestId`)
@@ -23,6 +23,8 @@ automigrate analyzes your existing test suites, builds a transformation plan wit
 - **Plugin system** -- Custom parsers, transformation rules, and code generators via the `AutomigratePlugin` interface
 - **Parallel processing** -- Concurrent file transformation with configurable concurrency
 - **Unified diffs** -- Preview every change before committing with `automigrate diff`
+- **Watch mode** -- Re-migrate incrementally as source files change with `--watch`
+- **Non-test file filtering** -- Automatically excludes config files (`wdio.conf`, `jest.config`, `tsconfig`, etc.)
 
 ## Quick Start
 
@@ -50,6 +52,14 @@ npx automigrate migrate ./tests --output ./playwright-tests --no-dry-run
 
 You will be prompted for confirmation before any files are created. Pass `-y` to skip the prompt.
 
+### Deep scan
+
+```bash
+npx automigrate scan ./tests
+```
+
+Performs a deep structural analysis -- detects frameworks, file roles, patterns, and generates a migration blueprint.
+
 ## Installation
 
 ```bash
@@ -66,6 +76,14 @@ npm install --save-dev automigrate
 Requires Node.js >= 18.0.0.
 
 ## CLI Reference
+
+### `scan <sourceDir>`
+
+Deep-scan project structure -- detect frameworks, file roles, patterns, and generate a migration blueprint.
+
+```bash
+automigrate scan ./tests --verbose
+```
 
 ### `analyze <sourceDir>`
 
@@ -93,26 +111,28 @@ automigrate migrate ./tests \
   --selector-strategy best-practice \
   --wait-strategy auto-wait \
   --page-objects \
-  --fixtures
+  --fixtures \
+  --no-dry-run -y
 ```
 
-| Option                | Description                                                    | Default         |
-| --------------------- | -------------------------------------------------------------- | --------------- |
-| `--output <dir>`      | Output directory for Playwright tests (required)               | --              |
-| `--framework <fw>`    | Source framework: `selenium`, `cypress`, `puppeteer`, `appium` | auto-detected   |
-| `--language <lang>`   | Target language: `typescript`, `javascript`, `python`, `java`  | `typescript`    |
-| `--no-dry-run`        | Write files to disk                                            | dry-run enabled |
-| `--selector-strategy` | `preserve`, `modernize`, `best-practice`                       | `preserve`      |
-| `--wait-strategy`     | `preserve`, `auto-wait`, `explicit`                            | `auto-wait`     |
-| `--page-objects`      | Generate Playwright page object classes                        | `false`         |
-| `--fixtures`          | Generate Playwright test fixtures                              | `false`         |
-| `--include <glob>`    | Include patterns (repeatable)                                  | see defaults    |
-| `--exclude <glob>`    | Exclude patterns (repeatable)                                  | see defaults    |
-| `--concurrency <n>`   | Max concurrent file processing                                 | `4`             |
-| `--format <format>`   | Report format: `table`, `json`                                 | `table`         |
-| `--report <file>`     | Write full JSON report to file                                 | --              |
-| `-v, --verbose`       | Verbose output                                                 | `false`         |
-| `-y, --yes`           | Skip confirmation prompt                                       | `false`         |
+| Option                | Description                                                                   | Default         |
+| --------------------- | ----------------------------------------------------------------------------- | --------------- |
+| `--output <dir>`      | Output directory for Playwright tests (required)                              | --              |
+| `--framework <fw>`    | Source framework: `selenium`, `cypress`, `puppeteer`, `webdriverio`, `appium` | auto-detected   |
+| `--language <lang>`   | Target language: `typescript`, `javascript`                                   | `typescript`    |
+| `--no-dry-run`        | Write files to disk                                                           | dry-run enabled |
+| `--selector-strategy` | `preserve`, `modernize`, `best-practice`                                      | `preserve`      |
+| `--wait-strategy`     | `preserve`, `auto-wait`, `explicit`                                           | `auto-wait`     |
+| `--page-objects`      | Generate Playwright page object classes                                       | `false`         |
+| `--fixtures`          | Generate Playwright test fixtures                                             | `false`         |
+| `--include <glob>`    | Include patterns (repeatable)                                                 | see defaults    |
+| `--exclude <glob>`    | Exclude patterns (repeatable)                                                 | see defaults    |
+| `--concurrency <n>`   | Max concurrent file processing                                                | `4`             |
+| `--watch`             | Watch source directory and re-migrate on changes                              | `false`         |
+| `--format <format>`   | Report format: `table`, `json`                                                | `table`         |
+| `--report <file>`     | Write full JSON report to file                                                | --              |
+| `-v, --verbose`       | Verbose output                                                                | `false`         |
+| `-y, --yes`           | Skip confirmation prompt                                                      | `false`         |
 
 ### `diff <sourceDir>`
 
@@ -121,12 +141,6 @@ Preview changes as unified diffs without writing files.
 ```bash
 automigrate diff ./tests --output ./playwright-tests
 ```
-
-| Option            | Description                                    | Default              |
-| ----------------- | ---------------------------------------------- | -------------------- |
-| `--output <dir>`  | Target output directory (for path computation) | `./playwright-tests` |
-| `--config <path>` | Path to config file                            | auto-detected        |
-| `-v, --verbose`   | Verbose output                                 | `false`              |
 
 ### `init`
 
@@ -194,24 +208,70 @@ export default config;
 
 ## Supported Transformations
 
-### Selenium to Playwright
+### Selenium (Java/JS) to Playwright
 
-| Selenium                              | Playwright                           |
-| ------------------------------------- | ------------------------------------ |
-| `driver.get(url)`                     | `await page.goto(url)`               |
-| `driver.findElement(By.id("x"))`      | `page.locator('#x')`                 |
-| `driver.findElement(By.xpath("//a"))` | `page.locator('xpath=//a')`          |
-| `element.click()`                     | `await locator.click()`              |
-| `element.sendKeys("text")`            | `await locator.fill("text")`         |
-| `element.getText()`                   | `await locator.textContent()`        |
-| `element.getAttribute("href")`        | `await locator.getAttribute("href")` |
-| `element.isDisplayed()`               | `await locator.isVisible()`          |
-| `driver.executeScript(js)`            | `await page.evaluate(js)`            |
-| `driver.switchTo().frame(ref)`        | `page.frameLocator(selector)`        |
-| `driver.switchTo().alert().accept()`  | `page.on('dialog', d => d.accept())` |
-| `driver.manage().addCookie(c)`        | `await context.addCookies([c])`      |
-| `driver.getScreenshotAs(...)`         | `await page.screenshot({ path })`    |
-| `driver.quit()`                       | `await browser.close()`              |
+| Selenium                                    | Playwright                                       |
+| ------------------------------------------- | ------------------------------------------------ |
+| `driver.get(url)`                           | `await page.goto(url)`                           |
+| `driver.findElement(By.id("x"))`            | `page.locator('#x')`                             |
+| `driver.findElement(By.cssSelector("s"))`   | `page.locator('s')`                              |
+| `driver.findElement(By.xpath("//a"))`       | `page.locator('xpath=//a')`                      |
+| `element.sendKeys("text")`                  | `await locator.fill("text")`                     |
+| `element.click()`                           | `await locator.click()`                          |
+| `element.clear()`                           | `await locator.clear()`                          |
+| `element.getText()`                         | `await locator.textContent()`                    |
+| `element.getAttribute("href")`              | `await locator.getAttribute("href")`             |
+| `element.isDisplayed()`                     | `await locator.isVisible()`                      |
+| `driver.executeScript(js)`                  | `await page.evaluate(js)`                        |
+| `driver.switchTo().frame(ref)`              | `page.frameLocator(selector)` / `contentFrame()` |
+| `driver.switchTo().alert().accept()`        | `page.on('dialog', d => d.accept())`             |
+| `driver.manage().addCookie(c)`              | `await context.addCookies([c])`                  |
+| `driver.manage().getCookieNamed("n")`       | `(await context.cookies()).find(...)`            |
+| `driver.manage().deleteAllCookies()`        | `await context.clearCookies()`                   |
+| `new Actions(driver).moveToElement(el)`     | `await el.hover()`                               |
+| `new Actions(driver).dragAndDrop(src, tgt)` | `await src.dragTo(tgt)`                          |
+| `new Actions(driver).contextClick(el)`      | `await el.click({ button: 'right' })`            |
+| `new Actions(driver).doubleClick(el)`       | `await el.dblclick()`                            |
+| `new Select(el).selectByVisibleText("x")`   | `await el.selectOption({ label: 'x' })`          |
+| `driver.getTitle()`                         | `await page.title()`                             |
+| `driver.getCurrentUrl()`                    | `page.url()`                                     |
+| `driver.navigate().back()`                  | `await page.goBack()`                            |
+| `driver.getScreenshotAs(...)`               | `await page.screenshot({ path })`                |
+| `driver.quit()`                             | `await browser.close()`                          |
+| `assertTrue(el.isDisplayed())`              | `await expect(locator).toBeVisible()`            |
+| `assertEquals(title, "x")`                  | `await expect(page).toHaveTitle("x")`            |
+
+### WebdriverIO to Playwright
+
+| WebdriverIO                                 | Playwright                                            |
+| ------------------------------------------- | ----------------------------------------------------- |
+| `browser.url(path)`                         | `await page.goto(path)`                               |
+| `$('selector')`                             | `page.locator('selector')`                            |
+| `$$('selector')`                            | `page.locator('selector')`                            |
+| `$('sel').setValue('text')`                 | `await page.locator('sel').fill('text')`              |
+| `$('sel').click()`                          | `await page.locator('sel').click()`                   |
+| `$('sel').doubleClick()`                    | `await page.locator('sel').dblclick()`                |
+| `$('sel').clearValue()`                     | `await page.locator('sel').clear()`                   |
+| `$('sel').getText()`                        | `await page.locator('sel').textContent()`             |
+| `$('sel').getValue()`                       | `await page.locator('sel').inputValue()`              |
+| `$('sel').isDisplayed()`                    | `await page.locator('sel').isVisible()`               |
+| `$('sel').waitForDisplayed()`               | `await page.locator('sel').waitFor()`                 |
+| `$('sel').waitForDisplayed({reverse:true})` | `await page.locator('sel').waitFor({state:'hidden'})` |
+| `$('sel').moveTo()`                         | `await page.locator('sel').hover()`                   |
+| `$('sel').scrollIntoView()`                 | `await page.locator('sel').scrollIntoViewIfNeeded()`  |
+| `$('sel').selectByVisibleText('x')`         | `await page.locator('sel').selectOption({label:'x'})` |
+| `browser.pause(ms)`                         | `await page.waitForTimeout(ms)`                       |
+| `browser.execute(fn)`                       | `await page.evaluate(fn)`                             |
+| `browser.keys('Enter')`                     | `await page.keyboard.press('Enter')`                  |
+| `browser.saveScreenshot(path)`              | `await page.screenshot({ path })`                     |
+| `browser.acceptAlert()`                     | `page.on('dialog', d => d.accept())`                  |
+| `browser.dismissAlert()`                    | `page.on('dialog', d => d.dismiss())`                 |
+| `browser.setCookies(cookies)`               | `await context.addCookies(cookies)`                   |
+| `browser.deleteCookies()`                   | `await context.clearCookies()`                        |
+| `expect(el).toBeDisplayed()`                | `await expect(locator).toBeVisible()`                 |
+| `expect(el).toHaveText(t)`                  | `await expect(locator).toHaveText(t)`                 |
+| `expect(el).toHaveTextContaining(t)`        | `await expect(locator).toContainText(t)`              |
+| `expect(el).toBeSelected()`                 | `await expect(locator).toBeChecked()`                 |
 
 ### Cypress to Playwright
 
@@ -250,7 +310,21 @@ export default config;
 | `page.evaluate(fn)`         | `await page.evaluate(fn)`                   |
 | `page.screenshot(opts)`     | `await page.screenshot(opts)`               |
 
-80+ transformation rules are included across all frameworks. Each rule includes confidence scoring and flags low-confidence transforms for manual review.
+### Appium to Playwright
+
+| Appium                               | Playwright                                     |
+| ------------------------------------ | ---------------------------------------------- |
+| `MobileBy.AccessibilityId("x")`      | `page.getByLabel('x')`                         |
+| `AppiumBy.accessibilityId("x")`      | `page.getByLabel('x')`                         |
+| `AppiumBy.id("com.app:id/btn")`      | `page.locator('#com.app:id/btn')`              |
+| `driver.findElementById("x")`        | `page.locator('#x')`                           |
+| `driver.findElementByXPath("//x")`   | `page.locator('xpath=//x')`                    |
+| `driver.findElementByClassName("x")` | `page.locator('.x')`                           |
+| `new TouchAction(driver).tap(el)`    | `// [automigrate] Use page.touchscreen`        |
+| `driver.context("WEBVIEW")`          | `// [automigrate] Playwright handles natively` |
+| `driver.setLocation(lat, lon)`       | `await context.setGeolocation({...})`          |
+
+200+ transformation rules are included across all frameworks. Each rule includes confidence scoring and flags low-confidence transforms for manual review.
 
 ## Plugin API
 
@@ -296,16 +370,6 @@ const myPlugin: AutomigratePlugin = {
   async afterMigration(report) {
     console.log(`Migrated ${report.summary.totalFiles} files`);
   },
-
-  // Override the parser for full control
-  async customParser(file) {
-    // Return a ParsedFile with your own AST analysis
-  },
-
-  // Override code generation
-  async customGenerator(parsed, targetLang) {
-    // Return generated Playwright code as a string
-  },
 };
 
 export default myPlugin;
@@ -350,6 +414,40 @@ test('testLogin', async ({ page }) => {
 });
 ```
 
+### WebdriverIO to Playwright
+
+**Before:**
+
+```javascript
+describe('Login', () => {
+  it('should login with valid credentials', async () => {
+    await browser.url('/login');
+    await $('#username').setValue('admin');
+    await $('#password').setValue('secret');
+    await $('button[type="submit"]').click();
+    await expect($('.welcome')).toBeDisplayed();
+    await expect($('.welcome')).toHaveTextContaining('Welcome');
+  });
+});
+```
+
+**After:**
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('Login', () => {
+  test('should login with valid credentials', async ({ page }) => {
+    await page.goto('/login');
+    await page.locator('#username').fill('admin');
+    await page.locator('#password').fill('secret');
+    await page.locator('button[type="submit"]').click();
+    await expect(page.locator('.welcome')).toBeVisible();
+    await expect(page.locator('.welcome')).toContainText('Welcome');
+  });
+});
+```
+
 ### Cypress to Playwright
 
 **Before:**
@@ -382,52 +480,25 @@ test.describe('Search', () => {
 });
 ```
 
-### Puppeteer to Playwright
-
-**Before:**
-
-```javascript
-const browser = await puppeteer.launch({ headless: 'new' });
-const page = await browser.newPage();
-await page.goto('https://example.com');
-await page.waitForSelector('.content');
-const text = await page.$eval('.content', (el) => el.textContent);
-console.log(text);
-await page.screenshot({ path: 'screenshot.png' });
-await browser.close();
-```
-
-**After:**
-
-```typescript
-import { chromium } from 'playwright';
-
-const browser = await chromium.launch({ headless: true });
-const context = await browser.newContext();
-const page = await context.newPage();
-await page.goto('https://example.com');
-await page.locator('.content').waitFor();
-const text = await page.locator('.content').textContent();
-console.log(text);
-await page.screenshot({ path: 'screenshot.png' });
-await browser.close();
-```
-
 ## Roadmap
 
-- [ ] Python parser (pytest/unittest with Selenium bindings)
-- [ ] C# parser (NUnit/xUnit with Selenium WebDriver)
-- [ ] Appium mobile test transformations (touch gestures, device capabilities)
+- [x] Selenium (Java/JS) to Playwright
+- [x] Cypress to Playwright
+- [x] Puppeteer to Playwright
+- [x] WebdriverIO to Playwright
+- [x] Appium mobile test transformations
+- [x] Robot Framework support
+- [x] Watch mode for incremental migration
 - [ ] Interactive mode with per-transformation approval
 - [ ] VS Code extension for inline migration suggestions
 - [ ] Migration progress dashboard
-- [ ] Custom selector mapping configuration
+- [ ] C# parser (NUnit/xUnit with Selenium WebDriver)
 
 ## Contributing
 
 ```bash
 # Clone the repository
-git clone https://github.com/user/automigrate.git
+git clone https://github.com/vazidmansuri005/automigrate.git
 cd automigrate
 
 # Install dependencies
@@ -463,13 +534,18 @@ src/
   cli/              CLI commands (commander)
   config/           Configuration loading and defaults
   core/
-    transformers/   Transformation engine (AST + regex hybrid)
-    parsers/        Language-specific parsers (Babel, Tree-sitter)
+    transformers/   Transformation engine (200+ regex rules + smart patterns)
+    parsers/        Language-specific parsers (Java, JS/TS, Gherkin, Python)
     generators/     Playwright code generators
+    analyzers/      Framework detection and structure analysis
     reporters/      Migration report formatters
   mappings/         Framework-to-Playwright API mapping tables
   types/            TypeScript type definitions
   utils/            Shared utilities (diff, logging)
+tests/
+  unit/             386 unit tests (vitest)
+  fixtures/         Test fixtures for all supported frameworks
+  e2e/              End-to-end integration tests
 ```
 
 ## License
