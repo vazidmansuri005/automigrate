@@ -9,6 +9,8 @@
 
 ---
 
+![automigrate demo](demo.gif)
+
 automigrate analyzes your existing test suites, builds a transformation plan with confidence scores, and generates idiomatic Playwright code. It runs in dry-run mode by default and never modifies your source files.
 
 ## Features
