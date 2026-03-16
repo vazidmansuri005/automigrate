@@ -154,6 +154,9 @@ program
   .option('--config <path>', 'Path to config file')
   .option('--format <format>', 'Report format: table, json', 'table')
   .option('--report <file>', 'Write report to file')
+  .option('--ai <provider>', 'Enable AI-powered refinement: anthropic, openai')
+  .option('--ai-key <key>', 'API key for AI provider (or set ANTHROPIC_API_KEY / OPENAI_API_KEY)')
+  .option('--ai-model <model>', 'AI model override (default: claude-sonnet-4-20250514 / gpt-4o)')
   .option('-v, --verbose', 'Verbose output')
   .option('-y, --yes', 'Skip confirmation prompt')
   .action(async (sourceDir: string, opts) => {
@@ -169,6 +172,25 @@ program
       maxConcurrency: parseInt(opts.concurrency, 10),
       verbose: opts.verbose ?? false,
     };
+
+    // AI configuration
+    if (opts.ai) {
+      const aiKey =
+        opts.aiKey ||
+        (opts.ai === 'anthropic' ? process.env.ANTHROPIC_API_KEY : process.env.OPENAI_API_KEY);
+      if (!aiKey) {
+        console.error(
+          `\n  Error: AI provider "${opts.ai}" requires an API key.\n` +
+            `  Pass --ai-key <key> or set ${opts.ai === 'anthropic' ? 'ANTHROPIC_API_KEY' : 'OPENAI_API_KEY'} env var.\n`,
+        );
+        process.exit(1);
+      }
+      overrides.ai = {
+        provider: opts.ai as 'anthropic' | 'openai',
+        apiKey: aiKey,
+        model: opts.aiModel,
+      };
+    }
 
     if (opts.framework) {
       overrides.sourceFramework = opts.framework as SourceFramework;

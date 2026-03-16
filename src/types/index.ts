@@ -339,6 +339,11 @@ export interface MigrationConfig {
   customRules?: TransformationRule[];
   bddStyle?: 'inline' | 'preserve';
   pythonTestRunner?: 'pytest' | 'unittest';
+  ai?: {
+    provider: 'anthropic' | 'openai';
+    apiKey: string;
+    model?: string;
+  };
   parallel: boolean;
   maxConcurrency: number;
   verbose: boolean;

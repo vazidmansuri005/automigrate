@@ -45,6 +45,7 @@ import type { DependencyGraph } from './analyzers/dependency-graph.js';
 import { StructureAnalyzer } from './analyzers/structure-analyzer.js';
 import type { ProjectStructure } from './analyzers/structure-analyzer.js';
 import { createLogger, setLogLevel } from '../utils/logger.js';
+import { refineWithAI } from './ai-refiner.js';
 
 const log = createLogger('engine');
 
@@ -217,6 +218,18 @@ export class MigrationEngine {
 
         const generator = new CodeGenerator(this.config);
         const generated = generator.generate(transformResult, parsed);
+
+        // AI refinement pass — only runs if AI config is provided
+        if (this.config.ai?.apiKey) {
+          const aiResult = await refineWithAI(
+            parsed.source.content,
+            generated.content,
+            parsed.source.framework,
+            this.config.ai,
+          );
+          generated.content = aiResult.refined;
+        }
+
         generatedFiles.push(generated);
 
         // Collect page objects for fixture generation
